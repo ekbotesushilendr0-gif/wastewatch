@@ -387,6 +387,11 @@ app.delete("/api/complaints/:id", verifyToken, verifyAdmin, async (req, res) => 
 });
 
 // ─── START SERVER ─────────────────────────────────────────────────
+app.use((req, res, next) => {
+  if (req.method !== "GET" || req.path.startsWith("/api/")) return next();
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`\n🚀 WasteWatch server running on http://localhost:${PORT}`);
