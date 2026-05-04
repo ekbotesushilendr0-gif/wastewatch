@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Complaints - WasteWatch</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <div class="logo-icon">♻️</div>
+    WasteWatch
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="report.html">Report Waste</a></li>
+    <li><a href="complaints.html" class="active">My Complaints</a></li>
+    <li><a href="city-status.html">City Status</a></li>
+    <li><a href="admin.html">Admin</a></li>
+    <li><a href="login.html" class="btn-nav nav-login-link">Login</a></li>
+  </ul>
+</nav>
+
+<div class="complaints-wrap">
+  <div class="complaints-header">
+    <div>
+      <p class="section-label">Dashboard</p>
+      <h1 style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;letter-spacing:-0.5px;">
+        My Complaints
+      </h1>
+      <p style="color:var(--text-muted);margin-top:5px;">
+        <span id="complaintCount">0 complaints</span> submitted
+      </p>
+    </div>
+    <div style="display:flex;gap:0.8rem;align-items:flex-start;flex-wrap:wrap;">
+      <a href="report.html" class="btn btn-primary">+ New Report</a>
+      <button id="clearComplaintsBtn" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger);">Clear All</button>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem;" id="summaryCards"></div>
+
+  <div class="filter-tabs" style="margin-bottom:1.2rem;">
+    <button class="tab-btn active" data-filter="all">All</button>
+    <button class="tab-btn" data-filter="Pending">Pending</button>
+    <button class="tab-btn" data-filter="In Progress">In Progress</button>
+    <button class="tab-btn" data-filter="Resolved">Resolved</button>
+  </div>
+
+  <div class="complaints-table-wrap">
+    <table class="complaints-table">
+      <thead>
+        <tr>
+          <th>Photo</th>
+          <th>Location</th>
+          <th>Category</th>
+          <th>Description</th>
+          <th>Date</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="complaintsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Waste — WasteWatch</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+
+<body id="reportPage">
+
+  <nav>
+    <a href="index.html" class="nav-logo">
+      <div class="logo-icon">♻️</div>
+      WasteWatch
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="report.html" class="active">Report Waste</a></li>
+      <li><a href="complaints.html">My Complaints</a></li>
+      <li><a href="city-status.html">City Status</a></li>
+      <li><a href="admin.html">Admin</a></li>
+      <li><a href="login.html" class="btn-nav nav-login-link">Login</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="page-header">
+      <p class="section-label">Submit a Report</p>
+      <h1>Report Waste Issue</h1>
+      <p>Help keep your city clean by reporting waste issues in your area.</p>
+    </div>
+
+    <div id="reportLoginPrompt" style="display:none;flex-direction:column;align-items:center;justify-content:center;
+    background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
+    padding:3.5rem 2rem;text-align:center;box-shadow:var(--shadow);margin-bottom:2rem;">
+      <div style="font-size:3rem;margin-bottom:1rem;">🔒</div>
+      <h2
+        style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--text);margin-bottom:0.5rem;">
+        Login to Submit a Report
+      </h2>
+      <p style="color:var(--text-muted);margin-bottom:1.8rem;max-width:340px;line-height:1.6;">
+        You need to be logged in to report waste issues. Create a free account or sign in to continue.
+      </p>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
+        <a href="login.html" class="btn btn-primary btn-lg">Sign In</a>
+        <a href="register.html" class="btn btn-outline btn-lg">Create Account</a>
+      </div>
+    </div>
+
+    <div id="reportFormSection" style="display:none;">
+      <div class="report-card">
+        <form id="reportForm">
+
+          <div class="form-group">
+            <label>Photo of Waste Site <span style="color:var(--text-muted);font-weight:400">(optional but
+                recommended)</span></label>
+            <div class="upload-zone" id="uploadZone">
+              <input type="file" id="imageInput" accept="image/*">
+              <div class="upload-placeholder">
+                <div class="upload-icon">📸</div>
+                <h4>Drag & drop or click to upload</h4>
+                <p>JPG, PNG or WEBP — max 5 MB</p>
+              </div>
+              <img id="imagePreview" class="upload-preview" alt="Preview"
+                style="display:none;max-width:100%;border-radius:10px;margin-top:0.5rem;">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="location">Location / Address *</label>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+
+                <div class="input-icon-wrap">
+                  <span class="input-icon">📍</span>
+                  <input type="text" id="location" class="form-control" placeholder="Auto or manual location" required>
+                </div>
+
+                <button type="button" id="getLocationBtn" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);
+      background:var(--bg);cursor:pointer;font-size:0.85rem;font-weight:bold;">
+                  📍 Use My Current Location
+                </button>
+
+                <input type="hidden" id="lat">
+                <input type="hidden" id="lng">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="category">Category</label>
+              <select id="category" class="form-control" style="appearance:auto;">
+                <option value="Garbage Dumping">🗑️ Garbage Dumping</option>
+                <option value="Overflowing Bin">🪣 Overflowing Bin</option>
+                <option value="Open Burning">🔥 Open Burning</option>
+                <option value="Sewage / Drain">💧 Sewage / Drain</option>
+                <option value="Construction Debris">🧱 Construction Debris</option>
+                <option value="Other">🔖 Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Pick Exact Location on Map</label>
+            <div id="selectMap" style="height:300px;border-radius:12px;border:1.5px solid var(--border);box-shadow:var(--shadow);z-index:0;"></div>
+            <p style="color:var(--text-muted);font-size:0.83rem;margin-top:0.5rem;">Click the map to drop the marker at the exact waste spot.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Description *</label>
+            <textarea id="description" class="form-control" rows="4"
+              placeholder="Describe the waste issue — what you see, how bad it is, and any other relevant details..."
+              required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Urgency Level</label>
+            <div style="display:flex;gap:0.8rem;flex-wrap:wrap;margin-top:4px;">
+              <label
+                style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:0.9rem;transition:all 0.15s;"
+                class="urgency-opt">
+                <input type="radio" name="urgency" value="Low" style="accent-color:var(--green);" checked> 🟢 Low
+              </label>
+              <label
+                style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:0.9rem;transition:all 0.15s;"
+                class="urgency-opt">
+                <input type="radio" name="urgency" value="Medium" style="accent-color:var(--green);"> 🟡 Medium
+              </label>
+              <label
+                style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:0.9rem;transition:all 0.15s;"
+                class="urgency-opt">
+                <input type="radio" name="urgency" value="High" style="accent-color:var(--green);"> 🔴 High
+              </label>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:1rem;margin-top:0.5rem;">
+            <button type="submit" class="btn btn-primary btn-lg" style="flex:1;justify-content:center;">
+              🚀 Submit Report
+            </button>
+            <a href="complaints.html" class="btn btn-outline" style="padding:15px 22px;">View All</a>
+          </div>
+        </form>
+      </div>
+
+      <div
+        style="margin-top:1.5rem;background:rgba(45,138,78,0.06);border:1.5px solid rgba(45,138,78,0.15);border-radius:14px;padding:1.3rem 1.5rem;">
+        <p style="font-weight:600;font-size:0.9rem;color:var(--green-dark);margin-bottom:0.6rem;">💡 Tips for a good
+          report</p>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:0.4rem;">
+          <li style="font-size:0.85rem;color:var(--text-muted);">✔ Take a clear photo showing the extent of waste</li>
+          <li style="font-size:0.85rem;color:var(--text-muted);">✔ Include a nearby landmark in the location field</li>
+          <li style="font-size:0.85rem;color:var(--text-muted);">✔ Describe if the waste is a health or fire hazard</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+
+</html>

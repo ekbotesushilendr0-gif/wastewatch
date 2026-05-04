@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - WasteWatch</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #adminMapContainer {
+      height: 420px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      box-shadow: var(--shadow);
+      z-index: 0;
+    }
+
+    .admin-summary {
+      grid-template-columns: repeat(4, 1fr) !important;
+    }
+  </style>
+</head>
+
+<body>
+
+  <nav>
+    <a href="index.html" class="nav-logo">
+      <div class="logo-icon">♻️</div>
+      WasteWatch
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="report.html">Report Waste</a></li>
+      <li><a href="complaints.html">My Complaints</a></li>
+      <li><a href="city-status.html">City Status</a></li>
+      <li><a href="admin.html" class="active">Admin</a></li>
+      <li><a href="login.html" class="btn-nav nav-login-link">Login</a></li>
+    </ul>
+  </nav>
+
+  <main class="admin-wrap" style="visibility:hidden;">
+    <header class="admin-header">
+      <div>
+        <p class="section-label">Admin Panel</p>
+        <h1>Admin Dashboard</h1>
+        <p>Review complaints, update status, and view reported locations on the map.</p>
+      </div>
+    </header>
+
+    <!-- Make admin -->
+    <section class="admin-section" style="margin-top:0;margin-bottom:2rem;">
+      <div class="admin-section-header">
+        <p class="section-label">Admin Access</p>
+        <h2>Promote User to Admin</h2>
+      </div>
+      <div class="admin-card">
+        <form id="makeAdminForm" style="display:flex;gap:0.8rem;align-items:flex-end;flex-wrap:wrap;">
+          <div class="form-group" style="flex:1;min-width:240px;margin-bottom:0;">
+            <label for="makeAdminEmail">Email Address</label>
+            <input type="email" id="makeAdminEmail" class="form-control" placeholder="user@example.com" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Make Admin</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Summary cards -->
+    <section class="admin-summary" id="adminSummaryCards"></section>
+
+    <!-- Complaints table -->
+    <section class="admin-section">
+      <div class="admin-section-header">
+        <p class="section-label">Complaints Table</p>
+        <h2>All Complaints</h2>
+      </div>
+      <div class="complaints-table-wrap">
+        <table class="complaints-table">
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Location & User</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="adminComplaintsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Map section -->
+    <section class="admin-section">
+      <div class="admin-section-header">
+        <p class="section-label">Map Section</p>
+        <h2>Reported Locations</h2>
+        <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.3rem;">
+          🔴 Pending &nbsp; 🔵 In Progress &nbsp; 🟢 Resolved
+        </p>
+      </div>
+      <div id="adminMapContainer"></div>
+    </section>
+  </main>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+
+</html>
