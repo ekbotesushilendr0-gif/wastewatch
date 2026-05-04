@@ -3,7 +3,7 @@
 //  Pure real backend auth. No fake users. No localStorage tricks.
 // ─────────────────────────────────────────────────────────────────
 
-const API = "http://localhost:3000/api";
+const API = "https://wastewatch-xlvr.onrender.com/api";
 
 // ── Token helpers (only the JWT lives in localStorage) ────────────
 const getToken = () => localStorage.getItem("ww_token");
