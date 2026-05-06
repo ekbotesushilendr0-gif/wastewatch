@@ -347,6 +347,15 @@ app.get("/api/complaints/me", verifyToken, async (req, res) => {
   }
 });
 
+app.delete("/api/complaints/me/all", verifyToken, async (req, res) => {
+  try {
+    await Complaint.deleteMany({ userId: req.user.id });
+    res.json({ message: "All complaints deleted." });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete complaints." });
+  }
+});
+
 app.get("/api/complaints/all", async (req, res) => {
   try {
     const complaints = await Complaint.find().sort({ createdAt: -1 });

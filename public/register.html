@@ -5,18 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Register — WasteWatch</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
 <nav>
   <a href="index.html" class="nav-logo">
-    <div class="logo-icon">♻️</div>
+    <div class="logo-icon"><i data-lucide="recycle"></i></div>
     WasteWatch
   </a>
   <ul class="nav-links">
     <li><a href="index.html">Home</a></li>
     <li><a href="report.html">Report Waste</a></li>
-    <li><a href="complaints.html">My Complaints</a></li>
+    <li><a href="profile.html">Profile</a></li>
     <li><a href="city-status.html">City Status</a></li>
     <li><a href="admin.html">Admin</a></li>
     <li><a href="login.html" class="btn-nav nav-login-link">Login</a></li>
@@ -29,7 +30,7 @@
     <!-- STEP 1: Register form -->
     <div id="step-register" class="otp-step active">
       <div class="auth-logo">
-        <div class="logo-icon">♻️</div>
+        <div class="logo-icon"><i data-lucide="recycle"></i></div>
         <h2>Create Account</h2>
         <p>Join WasteWatch and start reporting waste issues</p>
       </div>
@@ -63,7 +64,7 @@
     <!-- STEP 2: OTP verification -->
     <div id="step-otp" class="otp-step">
       <div class="auth-logo">
-        <div class="logo-icon">📧</div>
+        <div class="logo-icon"><i data-lucide="mail"></i></div>
         <h2>Verify Your Email</h2>
         <p>We sent a 6-digit code to<br><strong id="otpEmailDisplay" style="color:var(--green-dark)"></strong></p>
       </div>

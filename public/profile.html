@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile - WasteWatch</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <div class="logo-icon"><i data-lucide="recycle"></i></div>
+    WasteWatch
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="report.html">Report Waste</a></li>
+    <li><a href="profile.html" class="active">Profile</a></li>
+    <li><a href="city-status.html">City Status</a></li>
+    <li><a href="admin.html">Admin</a></li>
+    <li><a href="login.html" class="btn-nav nav-login-link">Login</a></li>
+  </ul>
+</nav>
+
+<div class="complaints-wrap">
+  <div class="complaints-header">
+    <div>
+      <p class="section-label">Account</p>
+      <h1 style="font-family:'Poppins',sans-serif;font-size:2rem;font-weight:800;letter-spacing:-0.5px;">
+        My Profile
+      </h1>
+      <p style="color:var(--text-muted);margin-top:5px;">
+        Manage your account and view your reports
+      </p>
+    </div>
+  </div>
+
+  <div class="profile-settings" style="background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:1.5rem; margin-bottom:2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <h3 style="margin-bottom:0.3rem;">Account Details</h3>
+      <p style="color:var(--text-muted); font-size:0.9rem;" id="profileEmailDisplay">Loading...</p>
+      <span id="profileRoleDisplay" class="status-badge" style="margin-top:0.5rem; background:rgba(53,88,176,0.1); color:#3558b0;">User</span>
+    </div>
+    <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="logout()">
+      <i data-lucide="log-out" style="width:18px;height:18px;margin-right:6px;"></i> Logout
+    </button>
+  </div>
+
+  <div class="complaints-header" style="margin-top:2rem;">
+    <div>
+      <h2 style="font-family:'Poppins',sans-serif;font-size:1.5rem;font-weight:700;">
+        My Complaints
+      </h2>
+      <p style="color:var(--text-muted);margin-top:5px;">
+        <span id="complaintCount">0 complaints</span> submitted
+      </p>
+    </div>
+    <div style="display:flex;gap:0.8rem;align-items:flex-start;flex-wrap:wrap;">
+      <a href="report.html" class="btn btn-primary"><i data-lucide="plus" style="width:18px;height:18px;margin-right:6px;"></i> New Report</a>
+      <button id="clearComplaintsBtn" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger);">
+        <i data-lucide="trash-2" style="width:18px;height:18px;margin-right:6px;"></i> Clear All
+      </button>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem;" id="summaryCards"></div>
+
+  <div class="filter-tabs" style="margin-bottom:1.2rem;">
+    <button class="tab-btn active" data-filter="all">All</button>
+    <button class="tab-btn" data-filter="Pending">Pending</button>
+    <button class="tab-btn" data-filter="In Progress">In Progress</button>
+    <button class="tab-btn" data-filter="Resolved">Resolved</button>
+  </div>
+
+  <div class="complaints-table-wrap">
+    <table class="complaints-table">
+      <thead>
+        <tr>
+          <th>Photo</th>
+          <th>Location</th>
+          <th>Category</th>
+          <th>Description</th>
+          <th>Date</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="complaintsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

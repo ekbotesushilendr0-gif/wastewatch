@@ -42,28 +42,94 @@ async function fetchCurrentUser() {
 }
 
 // ── Navbar ────────────────────────────────────────────────────────
-async function updateNav() {
-  let user = getUser();
-  if (getToken()) {
-    try {
-      user = await fetchCurrentUser();
-    } catch {
-      user = getUser();
-    }
-  }
+function applyNavVisibility(userObj) {
+  const role = userObj?.role || null;
+  const isLoggedIn = Boolean(userObj && getToken());
+
+  document.querySelectorAll('.nav-links a[href="admin.html"]').forEach((el) => {
+    const show = role === "admin";
+    el.parentElement.style.display = show ? "block" : "none";
+    el.classList.toggle("show-nav", show);
+  });
+
+  document.querySelectorAll('.nav-links a[href="profile.html"]').forEach((el) => {
+    const show = isLoggedIn;
+    el.parentElement.style.display = show ? "block" : "none";
+    el.classList.toggle("show-nav", show);
+  });
 
   document.querySelectorAll(".nav-login-link").forEach((el) => {
-    if (user) {
-      el.textContent = "Logout";
-      el.href = "#";
-      el.onclick = (e) => { e.preventDefault(); logout(); };
+    if (isLoggedIn) {
+      el.style.display = "none";
     } else {
+      el.style.display = "";
       el.textContent = "Login";
       el.href = "login.html";
       el.onclick = null;
     }
   });
+
+  renderMobileBottomNav(role, isLoggedIn);
 }
+
+async function updateNav() {
+  // 1. Immediately apply cached UI state to prevent UI flashing
+  let user = getUser();
+  applyNavVisibility(user);
+
+  // 2. Fetch fresh user data from server asynchronously
+  if (getToken()) {
+    try {
+      user = await fetchCurrentUser();
+      applyNavVisibility(user);
+    } catch {
+      // Keep localStorage state if network fails
+    }
+  }
+}
+
+function renderMobileBottomNav(role = null, isLoggedIn = Boolean(getUser() && getToken())) {
+  const existing = document.querySelector(".mobile-bottom-nav");
+  if (existing) existing.remove();
+
+  const current = window.location.pathname.split("/").pop() || "index.html";
+  const items = [
+    { href: "index.html", icon: "home", label: "Home" },
+    { href: "city-status.html", icon: "building-2", label: "City" },
+    { href: "report.html", icon: "trash-2", label: "Report" },
+  ];
+
+  if (isLoggedIn) items.push({ href: "profile.html", icon: "user-circle", label: "Profile" });
+  if (role === "admin") items.push({ href: "admin.html", icon: "shield", label: "Admin" });
+  if (!isLoggedIn) {
+    items.push({
+      href: "login.html",
+      icon: "log-in",
+      label: "Login",
+      logout: false,
+    });
+  }
+
+  const bottomNav = document.createElement("nav");
+  bottomNav.className = "mobile-bottom-nav";
+  bottomNav.setAttribute("aria-label", "Mobile navigation");
+  bottomNav.innerHTML = items.map((item) => `
+    <a href="${item.href}" class="${current === item.href ? "active" : ""}" data-logout="${item.logout ? "true" : "false"}">
+      <span class="mobile-nav-icon"><i data-lucide="${item.icon}"></i></span>
+      <span>${item.label}</span>
+    </a>
+  `).join("");
+
+  bottomNav.querySelector('[data-logout="true"]')?.addEventListener("click", (e) => {
+    e.preventDefault();
+    logout();
+  });
+
+  document.body.appendChild(bottomNav);
+  if (window.lucide) window.lucide.createIcons();
+}
+
+renderMobileBottomNav();
 
 // ── Toast ─────────────────────────────────────────────────────────
 function showToast(msg, type = "success") {
@@ -72,7 +138,7 @@ function showToast(msg, type = "success") {
     t = document.createElement("div");
     t.id = "ww-toast";
     t.style.cssText = `position:fixed;bottom:2rem;right:2rem;z-index:9999;
-      padding:13px 22px;border-radius:12px;font-family:'DM Sans',sans-serif;
+      padding:13px 22px;border-radius:12px;font-family:'Poppins',sans-serif;
       font-size:0.92rem;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.18);
       transform:translateY(100px);opacity:0;transition:all 0.3s;`;
     document.body.appendChild(t);
@@ -95,9 +161,15 @@ function showToast(msg, type = "success") {
     .status-badge.status-in-progress{background:rgba(53,88,176,0.13);color:#3558b0;}
     .status-badge.status-resolved{background:rgba(45,138,78,0.13);color:#1a5c33;}
     .otp-step{display:none;} .otp-step.active{display:block;}
+    /* Prevent Nav Flashing */
+    .nav-links a[href="admin.html"], .nav-links a[href="profile.html"] { display: none !important; }
+    .nav-links a[href="admin.html"].show-nav, .nav-links a[href="profile.html"].show-nav { display: block !important; }
   `;
   document.head.appendChild(s);
 })();
+
+// Initialize Navigation Globally
+updateNav();
 
 function statusClass(s) { return (s || "pending").toLowerCase().replace(/\s+/g, "-"); }
 
@@ -117,7 +189,6 @@ function setBtn(btn, text, disabled) { btn.textContent = text; btn.disabled = di
 //  INDEX PAGE
 // ─────────────────────────────────────────────────────────────────
 if (document.getElementById("stat-reports")) {
-  updateNav();
   fetch(`${API}/complaints/all`)
     .then((r) => r.json())
     .then((all) => {
@@ -134,8 +205,7 @@ if (document.getElementById("stat-reports")) {
 //  LOGIN PAGE
 // ─────────────────────────────────────────────────────────────────
 if (document.getElementById("loginForm")) {
-  updateNav();
-  if (getUser() && getToken()) window.location.href = getRole() === "admin" ? "admin.html" : "complaints.html";
+  if (getUser() && getToken()) window.location.href = "profile.html";
 
   document.getElementById("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -155,7 +225,7 @@ if (document.getElementById("loginForm")) {
       if (!res.ok) { showErr("formError", data.error || "Login failed."); setBtn(btn, "Sign In →", false); return; }
       setToken(data.token);
       setUser({ email: data.email, role: data.role });
-      window.location.href = data.role === "admin" ? "admin.html" : "complaints.html";
+      window.location.href = "profile.html";
     } catch {
       showErr("formError", "Cannot reach server. Make sure it is running on port 3000.");
       setBtn(btn, "Sign In →", false);
@@ -167,8 +237,7 @@ if (document.getElementById("loginForm")) {
 //  REGISTER PAGE
 // ─────────────────────────────────────────────────────────────────
 if (document.getElementById("registerForm")) {
-  updateNav();
-  if (getUser() && getToken()) window.location.href = "complaints.html";
+  if (getUser() && getToken()) window.location.href = "profile.html";
 
   let pendingEmail = "";
   let pendingPassword = "";
@@ -221,8 +290,8 @@ if (document.getElementById("registerForm")) {
       if (!res.ok) { showErr("otpError", data.error || "Invalid OTP."); setBtn(btn, "Verify & Continue →", false); return; }
       setToken(data.token);
       setUser({ email: data.email, role: data.role });
-      showToast("Email verified! Welcome to WasteWatch 🎉");
-      setTimeout(() => (window.location.href = "complaints.html"), 800);
+      showToast("Email verified! Welcome to WasteWatch");
+      setTimeout(() => (window.location.href = "profile.html"), 800);
     } catch {
       showErr("otpError", "Cannot reach server.");
       setBtn(btn, "Verify & Continue →", false);
@@ -251,7 +320,6 @@ if (document.getElementById("registerForm")) {
 //  REPORT PAGE
 // ─────────────────────────────────────────────────────────────────
 if (document.getElementById("reportPage")) {
-  updateNav();
   const user = getUser();
   const formSection = document.getElementById("reportFormSection");
   const loginPrompt = document.getElementById("reportLoginPrompt");
@@ -380,24 +448,52 @@ if (document.getElementById("reportPage")) {
           body: formData,
         });
         const data = await res.json();
-        if (!res.ok) { showToast(data.error || "Failed to submit.", "error"); setBtn(btn, "🚀 Submit Report", false); return; }
-        setBtn(btn, "✅ Submitted!", true);
+        if (!res.ok) { showToast(data.error || "Failed to submit.", "error"); setBtn(btn, "Submit Report", false); return; }
+        setBtn(btn, "Submitted!", true);
         showToast("Report submitted successfully!");
-        setTimeout(() => (window.location.href = "complaints.html"), 900);
+        setTimeout(() => (window.location.href = "profile.html"), 900);
       } catch {
         showToast("Cannot reach server.", "error");
-        setBtn(btn, "🚀 Submit Report", false);
+        setBtn(btn, "Submit Report", false);
       }
     });
   }
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  MY COMPLAINTS PAGE
+//  PROFILE PAGE
 // ─────────────────────────────────────────────────────────────────
 if (document.getElementById("complaintsBody")) {
   if (!getUser() || !getToken()) { window.location.href = "login.html"; }
-  updateNav();
+
+  const profileEmailDisplay = document.getElementById("profileEmailDisplay");
+  const profileRoleDisplay = document.getElementById("profileRoleDisplay");
+  if (profileEmailDisplay) profileEmailDisplay.textContent = getUser().email;
+  if (profileRoleDisplay) {
+    profileRoleDisplay.textContent = getUser().role === "admin" ? "Admin" : "User";
+    if (getUser().role === "admin") {
+      profileRoleDisplay.style.background = "rgba(45,138,78,0.1)";
+      profileRoleDisplay.style.color = "var(--green-dark)";
+    }
+  }
+
+  const clearBtn = document.getElementById("clearComplaintsBtn");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", async () => {
+      if (!confirm("Are you sure you want to clear all your complaints?")) return;
+      try {
+        const res = await fetch(`${API}/complaints/me/all`, {
+          method: "DELETE",
+          headers: { Authorization: "Bearer " + getToken() }
+        });
+        if (!res.ok) throw new Error("Failed to delete");
+        showToast("All complaints deleted successfully.");
+        loadMyComplaints();
+      } catch {
+        showToast("Failed to clear complaints.", "error");
+      }
+    });
+  }
 
   let allComplaints = [];
 
@@ -434,9 +530,9 @@ if (document.getElementById("complaintsBody")) {
 
     if (!list.length) {
       tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
-        <span class="empty-icon">📭</span><h3>No complaints yet</h3>
+        <span class="empty-icon"><i data-lucide="mail-open" style="width:40px;height:40px;color:var(--text-muted);"></i></span><h3>No complaints yet</h3>
         <p>Submit your first waste report to get started.</p>
-        <a href="report.html" class="btn btn-primary" style="margin-top:1rem">+ New Report</a>
+        <a href="report.html" class="btn btn-primary" style="margin-top:1rem"><i data-lucide="plus" style="width:16px;height:16px;margin-right:6px;"></i> New Report</a>
       </div></td></tr>`;
       return;
     }
@@ -445,7 +541,7 @@ if (document.getElementById("complaintsBody")) {
       <tr>
         <td>${c.imagePath
           ? `<img src="${c.imagePath}" style="width:52px;height:40px;object-fit:cover;border-radius:7px;">`
-          : `<div style="width:52px;height:40px;border-radius:7px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.3rem;border:1px solid var(--border);">📷</div>`}</td>
+          : `<div style="width:52px;height:40px;border-radius:7px;background:var(--bg);display:flex;align-items:center;justify-content:center;border:1px solid var(--border);"><i data-lucide="camera" style="width:20px;height:20px;color:var(--text-muted);"></i></div>`}</td>
         <td><strong>${c.location}</strong></td>
         <td><span class="status-pill" style="background:rgba(45,138,78,0.1);color:var(--green-dark)">${c.category || "—"}</span></td>
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.description}">${c.description}</td>
@@ -554,28 +650,30 @@ if (document.getElementById("adminComplaintsBody")) {
         <div class="admin-card pending"><span>Pending</span><strong>${pending}</strong></div>
         <div class="admin-card"><span>In Progress</span><strong style="color:#3558b0">${inProg}</strong></div>
         <div class="admin-card resolved"><span>Resolved</span><strong>${resolved}</strong></div>`;
-      summaryEl.style.gridTemplateColumns = "repeat(4,1fr)";
+
     }
 
     const tbody = document.getElementById("adminComplaintsBody");
     tbody.innerHTML = !all.length
-      ? `<tr><td colspan="5"><div class="empty-state"><span class="empty-icon">📋</span><h3>No complaints yet</h3></div></td></tr>`
+      ? `<tr><td colspan="5"><div class="empty-state"><span class="empty-icon"><i data-lucide="clipboard-list" style="width:40px;height:40px;color:var(--text-muted);"></i></span><h3>No complaints yet</h3></div></td></tr>`
       : all.map((c) => `
           <tr>
             <td>${c.imagePath
               ? `<img src="${c.imagePath}" style="width:56px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">`
-              : `<div style="width:56px;height:44px;border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.4rem;border:1px solid var(--border);">📷</div>`}</td>
+              : `<div style="width:56px;height:44px;border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center;border:1px solid var(--border);"><i data-lucide="camera" style="width:20px;height:20px;color:var(--text-muted);"></i></div>`}</td>
             <td><strong style="display:block">${c.location}</strong><span style="font-size:0.8rem;color:var(--text-muted)">${c.userEmail || "—"}</span></td>
             <td style="max-width:200px;font-size:0.9rem;color:var(--text-muted)">${c.description}</td>
             <td>
-              <select class="status-select" data-id="${c._id}" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'DM Sans',sans-serif;font-size:0.85rem;background:var(--bg);cursor:pointer;">
-                <option value="Pending" ${c.status === "Pending" ? "selected" : ""}>⏳ Pending</option>
-                <option value="In Progress" ${c.status === "In Progress" ? "selected" : ""}>🔄 In Progress</option>
-                <option value="Resolved" ${c.status === "Resolved" ? "selected" : ""}>✅ Resolved</option>
+              <select class="status-select" data-id="${c._id}" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'Poppins',sans-serif;font-size:0.85rem;background:var(--bg);cursor:pointer;">
+                <option value="Pending" ${c.status === "Pending" ? "selected" : ""}>Pending</option>
+                <option value="In Progress" ${c.status === "In Progress" ? "selected" : ""}>In Progress</option>
+                <option value="Resolved" ${c.status === "Resolved" ? "selected" : ""}>Resolved</option>
               </select>
             </td>
-            <td><button class="btn-mini" onclick="adminDelete('${c._id}')" style="color:var(--danger);border-color:rgba(224,82,82,0.3)">🗑 Delete</button></td>
+            <td><button class="btn-mini" onclick="adminDelete('${c._id}')" style="color:var(--danger);border-color:rgba(224,82,82,0.3)"><i data-lucide="trash-2" style="width:14px;height:14px;margin-bottom:-2px;margin-right:2px;"></i> Delete</button></td>
           </tr>`).join("");
+          
+    if (window.lucide) window.lucide.createIcons();
 
     document.querySelectorAll(".status-select").forEach((sel) => {
       sel.addEventListener("change", async function () {
@@ -649,8 +747,6 @@ if (document.getElementById("adminComplaintsBody")) {
 //  CITY STATUS PAGE
 // ─────────────────────────────────────────────────────────────────
 if (document.getElementById("citySummaryCards")) {
-  updateNav();
-
   fetch(`${API}/complaints/all`)
     .then((r) => r.json())
     .then((all) => {
@@ -664,7 +760,7 @@ if (document.getElementById("citySummaryCards")) {
         <div class="admin-card pending"><span>Pending</span><strong>${pending}</strong></div>
         <div class="admin-card"><span>In Progress</span><strong style="color:#3558b0">${inProg}</strong></div>
         <div class="admin-card resolved"><span>Resolved</span><strong>${resolved}</strong></div>`;
-      summaryEl.style.gridTemplateColumns = "repeat(4,1fr)";
+
 
       const areaMap = {};
       all.forEach((c) => {
@@ -678,7 +774,7 @@ if (document.getElementById("citySummaryCards")) {
       const areas = Object.entries(areaMap).sort((a, b) => b[1].total - a[1].total);
       areaEl.innerHTML = areas.slice(0, 8).map(([name, d]) => `
         <div class="area-row">
-          <span>📍 ${name}</span>
+          <span style="display:flex;align-items:center;gap:0.3rem;"><i data-lucide="map-pin" style="width:16px;height:16px;color:var(--primary);"></i> ${name}</span>
           <div style="display:flex;align-items:center;gap:0.5rem">
             <strong>${d.total} report${d.total !== 1 ? "s" : ""}</strong>
             <span class="status-pill" style="background:rgba(45,138,78,0.1);color:var(--green-dark);font-size:0.75rem">${d.resolved} resolved</span>
@@ -689,12 +785,14 @@ if (document.getElementById("citySummaryCards")) {
       recentEl.innerHTML = all.slice(0, 6).map((c) => `
         <div class="recent-item">
           <div>
-            <strong>📍 ${c.location}</strong>
+            <strong style="display:flex;align-items:center;gap:0.3rem;"><i data-lucide="map-pin" style="width:16px;height:16px;color:var(--primary);"></i> ${c.location}</strong>
             <p>${(c.description || "").slice(0, 80)}${(c.description || "").length > 80 ? "…" : ""}</p>
             <small>${new Date(c.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</small>
           </div>
           <span class="status-badge status-${statusClass(c.status)}">${c.status}</span>
         </div>`).join("") || `<p class="city-empty">No recent complaints.</p>`;
+
+      if (window.lucide) window.lucide.createIcons();
 
       if (window.L && document.getElementById("cityStatusMap")) initLeafletMap("cityStatusMap", all);
     })
@@ -752,7 +850,7 @@ function initLeafletMap(containerId, complaints) {
       const color = c.status === "Resolved" ? "#2d8a4e" : c.status === "In Progress" ? "#3558b0" : "#e05252";
       L.marker(coords, {
         icon: L.divIcon({ className: "", html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] })
-      }).addTo(map).bindPopup(`<div style="min-width:160px;font-family:'DM Sans',sans-serif"><b>${c.location}</b><br><span style="font-size:0.8rem;color:#5a7060">${c.category || ""}</span><br><span style="color:${color};font-weight:700">${c.status}</span><p style="font-size:0.8rem;margin-top:4px;color:#5a7060">${(c.description || "").slice(0, 80)}</p></div>`);
+      }).addTo(map).bindPopup(`<div style="min-width:160px;font-family:'Poppins',sans-serif"><b>${c.location}</b><br><span style="font-size:0.8rem;color:#5a7060">${c.category || ""}</span><br><span style="color:${color};font-weight:700">${c.status}</span><p style="font-size:0.8rem;margin-top:4px;color:#5a7060">${(c.description || "").slice(0, 80)}</p></div>`);
     }));
   Promise.all(promises).then(() => {
     if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });

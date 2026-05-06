@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     #adminMapContainer {
       height: 420px;
@@ -17,9 +18,6 @@
       z-index: 0;
     }
 
-    .admin-summary {
-      grid-template-columns: repeat(4, 1fr) !important;
-    }
   </style>
 </head>
 
@@ -27,13 +25,13 @@
 
   <nav>
     <a href="index.html" class="nav-logo">
-      <div class="logo-icon">♻️</div>
+      <div class="logo-icon"><i data-lucide="recycle"></i></div>
       WasteWatch
     </a>
     <ul class="nav-links">
       <li><a href="index.html">Home</a></li>
       <li><a href="report.html">Report Waste</a></li>
-      <li><a href="complaints.html">My Complaints</a></li>
+      <li><a href="profile.html">Profile</a></li>
       <li><a href="city-status.html">City Status</a></li>
       <li><a href="admin.html" class="active">Admin</a></li>
       <li><a href="login.html" class="btn-nav nav-login-link">Login</a></li>
@@ -96,8 +94,10 @@
       <div class="admin-section-header">
         <p class="section-label">Map Section</p>
         <h2>Reported Locations</h2>
-        <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.3rem;">
-          🔴 Pending &nbsp; 🔵 In Progress &nbsp; 🟢 Resolved
+        <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.3rem;display:flex;align-items:center;gap:12px;">
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--danger);margin-right:4px;"></span> Pending</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3558b0;margin-right:4px;"></span> In Progress</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green-dark);margin-right:4px;"></span> Resolved</span>
         </p>
       </div>
       <div id="adminMapContainer"></div>
