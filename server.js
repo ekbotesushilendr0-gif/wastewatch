@@ -37,11 +37,17 @@ if (!MAIL_USER || !MAIL_PASS) {
 }
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  requireTLS: true,
   auth: {
     user: MAIL_USER,
     pass: MAIL_PASS,
   },
+  tls: {
+    family: 4
+  }
 });
 
 async function sendOTP(userEmail, otpCode) {
