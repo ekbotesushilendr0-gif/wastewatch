@@ -6,7 +6,7 @@ const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
@@ -26,33 +26,16 @@ app.use(express.json());
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, "public")));
 
-// ─── MAIL CONFIGURATION ───────────────────────────────────────────
-// Supports both naming conventions: GMAIL_USER or EMAIL_USER, etc.
-const MAIL_USER = process.env.GMAIL_USER || process.env.EMAIL_USER;
-const MAIL_PASS = process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASS;
+// ─── MAIL CONFIGURATION (Using Resend) ───────────────────────────
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-if (!MAIL_USER || !MAIL_PASS) {
-  console.warn("⚠️  WARNING: Email credentials not set. OTP emails will fail.");
-  console.warn("   Set GMAIL_USER and GMAIL_APP_PASSWORD in your .env file.");
+if (!process.env.RESEND_API_KEY) {
+  console.warn("⚠️  WARNING: RESEND_API_KEY not set. OTP emails will fail.");
 }
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  requireTLS: true,
-  auth: {
-    user: MAIL_USER,
-    pass: MAIL_PASS,
-  },
-  tls: {
-    family: 4
-  }
-});
-
 async function sendOTP(userEmail, otpCode) {
-  const mailOptions = {
-    from: `"WasteWatch" <${MAIL_USER}>`,
+  const { data, error } = await resend.emails.send({
+    from: "WasteWatch <onboarding@resend.dev>",
     to: userEmail,
     subject: "WasteWatch — Your Verification Code",
     html: `
@@ -65,9 +48,12 @@ async function sendOTP(userEmail, otpCode) {
         <p style="color:#5a7060;margin-top:24px;font-size:0.9rem;">This code expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>
       </div>
     `,
-  };
-  await transporter.sendMail(mailOptions);
-  console.log(`✅ OTP sent to ${userEmail}`);
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  console.log(`✅ OTP sent to ${userEmail} (Resend ID: ${data.id})`);
 }
 
 // ─── CONNECT DB ───────────────────────────────────────────────────
@@ -212,7 +198,7 @@ app.post("/api/register", async (req, res) => {
     } catch (mailErr) {
       console.error("❌ Failed to send OTP email:", mailErr.message);
       return res.status(500).json({
-        error: "Account created but failed to send OTP email. Check your GMAIL_USER and GMAIL_APP_PASSWORD in .env",
+        error: "Account created but failed to send OTP email. Check your RESEND_API_KEY in Render env.",
       });
     }
 
