@@ -3,16 +3,11 @@
 //  Pure real backend auth. No fake users. No localStorage tricks.
 // ─────────────────────────────────────────────────────────────────
 
-const API = (function() {
-  const origin = window.location.origin;
-  // If on localhost but different port (e.g. Live Server), fallback to 3000
-  if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
-    if (!origin.includes(":3000")) return "http://localhost:3000/api";
-  }
-  // Fallback for file protocol
-  if (window.location.protocol === "file:") return "http://localhost:3000/api";
-  return origin + "/api";
-})();
+const API =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000/api"
+    : window.location.origin + "/api";
+
 console.log("WasteWatch API initialized at:", API);
 
 
@@ -292,8 +287,9 @@ if (document.getElementById("loginForm")) {
       setToken(data.token);
       setUser({ email: data.email, role: data.role });
       window.location.href = "profile.html";
-    } catch {
-      showErr("formError", "Cannot reach server. Make sure it is running on port 3000.");
+    } catch (err) {
+      console.error("Login Error:", err);
+      showErr("formError", "Cannot reach server. Please check your connection.");
       setBtn(btn, "Sign In →", false);
     }
   });
@@ -333,8 +329,9 @@ if (document.getElementById("registerForm")) {
       document.getElementById("otpEmailDisplay").textContent = email;
       document.getElementById("step-register").classList.remove("active");
       document.getElementById("step-otp").classList.add("active");
-    } catch {
-      showErr("formError", "Cannot reach server. Make sure it is running on port 3000.");
+    } catch (err) {
+      console.error("Register Error:", err);
+      showErr("formError", "Cannot reach server. Please check your connection.");
       setBtn(btn, "Create Account →", false);
     }
   });
