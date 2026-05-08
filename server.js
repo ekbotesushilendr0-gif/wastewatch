@@ -6,7 +6,7 @@ const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const { Resend } = require("resend");
+const SibApiV3Sdk = require("sib-api-v3-sdk");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
@@ -26,19 +26,21 @@ app.use(express.json());
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, "public")));
 
-// ─── MAIL CONFIGURATION (Using Resend) ───────────────────────────
-const resend = new Resend(process.env.RESEND_API_KEY);
+// ─── MAIL CONFIGURATION (Using Brevo) ───────────────────────────
+const brevoClient = SibApiV3Sdk.ApiClient.instance;
+brevoClient.authentications["api-key"].apiKey = process.env.BREVO_API_KEY;
 
-if (!process.env.RESEND_API_KEY) {
-  console.warn("⚠️  WARNING: RESEND_API_KEY not set. OTP emails will fail.");
+if (!process.env.BREVO_API_KEY) {
+  console.warn("⚠️  WARNING: BREVO_API_KEY not set. OTP emails will fail.");
 }
 
 async function sendOTP(userEmail, otpCode) {
-  const { data, error } = await resend.emails.send({
-    from: "WasteWatch <onboarding@resend.dev>",
-    to: userEmail,
+  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  const sendSmtpEmail = {
+    sender: { name: "WasteWatch", email: "noreply@wastewatch.online" },
+    to: [{ email: userEmail }],
     subject: "WasteWatch — Your Verification Code",
-    html: `
+    htmlContent: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f4f7f4;border-radius:12px;">
         <h2 style="color:#1a5c33;margin-bottom:8px;">WasteWatch ♻️</h2>
         <p style="color:#5a7060;margin-bottom:24px;">Your email verification code is:</p>
@@ -48,12 +50,9 @@ async function sendOTP(userEmail, otpCode) {
         <p style="color:#5a7060;margin-top:24px;font-size:0.9rem;">This code expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>
       </div>
     `,
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-  console.log(`✅ OTP sent to ${userEmail} (Resend ID: ${data.id})`);
+  };
+  await apiInstance.sendTransacEmail(sendSmtpEmail);
+  console.log(`✅ OTP sent to ${userEmail} via Brevo`);
 }
 
 // ─── CONNECT DB ───────────────────────────────────────────────────
@@ -484,5 +483,5 @@ app.listen(PORT, () => {
   console.log(`\n🚀 WasteWatch server running on http://localhost:${PORT}`);
   console.log(`   MongoDB: ${process.env.MONGO_URI ? "✅ URI loaded" : "❌ Missing"}`);
   console.log(`   JWT:     ${process.env.JWT_SECRET ? "✅ Secret loaded" : "❌ Missing"}`);
-  console.log(`   Email:   ${process.env.RESEND_API_KEY ? "✅ Resend ready" : "❌ RESEND_API_KEY missing"}\n`);
+  console.log(`   Email:   ${process.env.BREVO_API_KEY ? "✅ Brevo ready" : "❌ BREVO_API_KEY missing"}\n`);
 });
