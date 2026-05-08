@@ -107,7 +107,7 @@ async function promoteConfiguredAdmin() {
   }
 }
 
-const Complaint = mongoose.model("Complaint", {
+const complaintSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   userEmail: String,
   imagePath: String,
@@ -118,8 +118,17 @@ const Complaint = mongoose.model("Complaint", {
   description: String,
   urgency: String,
   status: { type: String, default: "Pending" },
+  // Verification flow fields
+  proofImagePath: String,
+  resolutionNote: String,
+  disputeReason: String,
+  resolvedAt: Date,
+  verifiedAt: Date,
+  disputedAt: Date,
   createdAt: { type: Date, default: Date.now },
 });
+
+const Complaint = mongoose.model("Complaint", complaintSchema);
 
 // ─── MIDDLEWARE ───────────────────────────────────────────────────
 const verifyToken = (req, res, next) => {
@@ -365,12 +374,13 @@ app.get("/api/complaints/all", async (req, res) => {
   }
 });
 
+// Status PATCH — only Pending / In Progress (Resolved now requires proof via /resolve)
 app.patch("/api/complaints/:id/status", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { status } = req.body;
-    const allowed = ["Pending", "In Progress", "Resolved"];
+    const allowed = ["Pending", "In Progress"];
     if (!allowed.includes(status))
-      return res.status(400).json({ error: "Invalid status value." });
+      return res.status(400).json({ error: "Use /resolve to mark as resolved, or pick Pending / In Progress." });
 
     const complaint = await Complaint.findByIdAndUpdate(
       req.params.id,
@@ -383,6 +393,82 @@ app.patch("/api/complaints/:id/status", verifyToken, verifyAdmin, async (req, re
     res.json(complaint);
   } catch (err) {
     res.status(500).json({ error: "Failed to update status." });
+  }
+});
+
+// RESOLVE — admin uploads proof photo; sets status → Awaiting Verification
+app.post("/api/complaints/:id/resolve", verifyToken, verifyAdmin, upload.single("proof"), async (req, res) => {
+  try {
+    const proofImagePath = req.file ? req.file.path : null;
+    if (!proofImagePath)
+      return res.status(400).json({ error: "Proof image is required." });
+
+    const { resolutionNote } = req.body;
+    const complaint = await Complaint.findByIdAndUpdate(
+      req.params.id,
+      { status: "Awaiting Verification", proofImagePath, resolutionNote: resolutionNote || "", resolvedAt: new Date() },
+      { new: true }
+    );
+    if (!complaint) return res.status(404).json({ error: "Complaint not found." });
+    res.json(complaint);
+  } catch (err) {
+    console.error("Resolve error:", err);
+    res.status(500).json({ error: "Failed to submit resolution." });
+  }
+});
+
+// VERIFY — complaint owner confirms resolution; sets status → Verified
+app.post("/api/complaints/:id/verify", verifyToken, async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ error: "Complaint not found." });
+    if (complaint.userId.toString() !== req.user.id)
+      return res.status(403).json({ error: "Not authorized." });
+    if (complaint.status !== "Awaiting Verification")
+      return res.status(400).json({ error: "Complaint is not awaiting verification." });
+
+    complaint.status = "Verified";
+    complaint.verifiedAt = new Date();
+    await complaint.save();
+    res.json(complaint);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to verify complaint." });
+  }
+});
+
+// DISPUTE — complaint owner disputes resolution; sets status → Disputed (persistent)
+app.post("/api/complaints/:id/dispute", verifyToken, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ error: "Complaint not found." });
+    if (complaint.userId.toString() !== req.user.id)
+      return res.status(403).json({ error: "Not authorized." });
+    if (complaint.status !== "Awaiting Verification")
+      return res.status(400).json({ error: "Complaint is not awaiting verification." });
+
+    complaint.status = "Disputed";
+    complaint.disputeReason = reason || "";
+    complaint.disputedAt = new Date();
+    await complaint.save();
+    res.json(complaint);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to dispute complaint." });
+  }
+});
+
+// REOPEN — admin reviews disputed complaint and sends it back to In Progress
+app.post("/api/complaints/:id/reopen", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const complaint = await Complaint.findByIdAndUpdate(
+      req.params.id,
+      { status: "In Progress" },
+      { new: true }
+    );
+    if (!complaint) return res.status(404).json({ error: "Complaint not found." });
+    res.json(complaint);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to reopen complaint." });
   }
 });
 

@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Profile - WasteWatch</title>
+  <title>My Profile — WasteWatch</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body>
+<body id="profilePage">
 
 <nav>
   <a href="index.html" class="nav-logo">
@@ -24,71 +24,158 @@
   </ul>
 </nav>
 
-<div class="complaints-wrap">
-  <div class="complaints-header">
-    <div>
-      <p class="section-label">Account</p>
-      <h1 style="font-family:'Poppins',sans-serif;font-size:2rem;font-weight:800;letter-spacing:-0.5px;">
-        My Profile
-      </h1>
-      <p style="color:var(--text-muted);margin-top:5px;">
-        Manage your account and view your reports
-      </p>
-    </div>
-  </div>
+<div class="prof-wrap">
 
-  <div class="profile-settings" style="background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:1.5rem; margin-bottom:2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
-    <div>
-      <h3 style="margin-bottom:0.3rem;">Account Details</h3>
-      <p style="color:var(--text-muted); font-size:0.9rem;" id="profileEmailDisplay">Loading...</p>
-      <span id="profileRoleDisplay" class="status-badge" style="margin-top:0.5rem; background:rgba(53,88,176,0.1); color:#3558b0;">User</span>
+  <!-- ── MOBILE HEADER & NAV ── -->
+  <div class="prof-mobile-nav">
+    <div class="prof-m-header">
+      <div class="prof-m-avatar" id="profMAvatarInitial">?</div>
+      <div class="prof-m-details">
+        <div class="prof-m-name" id="profMName">User</div>
+        <div class="prof-m-email" id="profMAvatarEmail">Loading…</div>
+        <span class="prof-role-badge" id="profMRoleBadge">User</span>
+      </div>
+      <button class="prof-m-logout" onclick="logout()" title="Log Out">
+        <i data-lucide="log-out"></i>
+      </button>
     </div>
-    <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="logout()">
-      <i data-lucide="log-out" style="width:18px;height:18px;margin-right:6px;"></i> Logout
-    </button>
-  </div>
-
-  <div class="complaints-header" style="margin-top:2rem;">
-    <div>
-      <h2 style="font-family:'Poppins',sans-serif;font-size:1.5rem;font-weight:700;">
-        My Complaints
-      </h2>
-      <p style="color:var(--text-muted);margin-top:5px;">
-        <span id="complaintCount">0 complaints</span> submitted
-      </p>
-    </div>
-    <div style="display:flex;gap:0.8rem;align-items:flex-start;flex-wrap:wrap;">
-      <a href="report.html" class="btn btn-primary"><i data-lucide="plus" style="width:18px;height:18px;margin-right:6px;"></i> New Report</a>
-      <button id="clearComplaintsBtn" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger);">
-        <i data-lucide="trash-2" style="width:18px;height:18px;margin-right:6px;"></i> Clear All
+    
+    <div class="prof-m-tabs">
+      <button class="prof-m-tab-btn active" data-tab="info">
+        <i data-lucide="user"></i> Profile
+      </button>
+      <button class="prof-m-tab-btn" data-tab="complaints">
+        <i data-lucide="clipboard-list"></i> Complaints
+        <span class="prof-count-badge m-badge" id="profMComplaintBadge" style="display:none;"></span>
       </button>
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem;" id="summaryCards"></div>
+  <!-- ── SIDEBAR (Desktop) ────────────────────────── -->
+  <aside class="prof-sidebar">
+    <!-- Avatar -->
+    <div class="prof-avatar-block">
+      <div class="prof-avatar" id="profAvatarInitial">?</div>
+      <div class="prof-avatar-info">
+        <div class="prof-avatar-email" id="profAvatarEmail">Loading…</div>
+        <span class="prof-role-badge" id="profRoleBadge">User</span>
+      </div>
+    </div>
 
-  <div class="filter-tabs" style="margin-bottom:1.2rem;">
-    <button class="tab-btn active" data-filter="all">All</button>
-    <button class="tab-btn" data-filter="Pending">Pending</button>
-    <button class="tab-btn" data-filter="In Progress">In Progress</button>
-    <button class="tab-btn" data-filter="Resolved">Resolved</button>
-  </div>
+    <!-- Nav tabs -->
+    <nav class="prof-sidenav">
+      <button class="prof-sidenav-item active" data-tab="info">
+        <span class="pnav-left">
+          <i data-lucide="user-circle" style="width:18px;height:18px;"></i>
+          Profile Info
+        </span>
+      </button>
+      <button class="prof-sidenav-item" data-tab="complaints">
+        <span class="pnav-left">
+          <i data-lucide="clipboard-list" style="width:18px;height:18px;"></i>
+          My Complaints
+        </span>
+        <span class="prof-count-badge" id="profComplaintBadge" style="display:none;"></span>
+      </button>
+    </nav>
 
-  <div class="complaints-table-wrap">
-    <table class="complaints-table">
-      <thead>
-        <tr>
-          <th>Photo</th>
-          <th>Location</th>
-          <th>Category</th>
-          <th>Description</th>
-          <th>Date</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="complaintsBody"></tbody>
-    </table>
-  </div>
+    <button class="prof-logout-btn" onclick="logout()">
+      <i data-lucide="log-out" style="width:16px;height:16px;"></i>
+      Log Out
+    </button>
+  </aside>
+
+  <!-- ── MAIN CONTENT ───────────────────────── -->
+  <main class="prof-main">
+
+    <!-- ── TAB: PROFILE INFO ── -->
+    <section class="prof-tab active" id="tab-info">
+      <div class="prof-section-header">
+        <p class="section-label">Account</p>
+        <h1 class="prof-section-title">Profile Info</h1>
+      </div>
+
+      <!-- Stats row -->
+      <div class="prof-stats-row">
+        <div class="prof-stat-card">
+          <div class="prof-stat-num" id="infoStatTotal">—</div>
+          <div class="prof-stat-lbl">Reports Raised</div>
+        </div>
+        <div class="prof-stat-card green">
+          <div class="prof-stat-num" id="infoStatResolved">—</div>
+          <div class="prof-stat-lbl">Resolved</div>
+        </div>
+        <div class="prof-stat-card orange">
+          <div class="prof-stat-num" id="infoStatPending">—</div>
+          <div class="prof-stat-lbl">Pending</div>
+        </div>
+      </div>
+
+      <!-- Account details -->
+      <div class="prof-info-card">
+        <div class="prof-info-card-head">Account Information</div>
+        <div class="prof-info-row">
+          <div class="prof-info-lbl"><i data-lucide="mail" style="width:15px;height:15px;"></i> Email</div>
+          <div class="prof-info-val" id="infoEmail">—</div>
+        </div>
+        <div class="prof-info-row">
+          <div class="prof-info-lbl"><i data-lucide="shield-check" style="width:15px;height:15px;"></i> Role</div>
+          <div class="prof-info-val" id="infoRole">—</div>
+        </div>
+        <div class="prof-info-row">
+          <div class="prof-info-lbl"><i data-lucide="check-circle" style="width:15px;height:15px;"></i> Status</div>
+          <div class="prof-info-val" style="color:var(--green);">✓ Verified</div>
+        </div>
+      </div>
+
+      <a href="report.html" class="btn btn-primary" style="display:inline-flex;gap:8px;margin-top:1.5rem;">
+        <i data-lucide="plus" style="width:16px;height:16px;"></i>
+        Submit New Report
+      </a>
+    </section>
+
+    <!-- ── TAB: MY COMPLAINTS ── -->
+    <section class="prof-tab" id="tab-complaints">
+      <div class="prof-section-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+        <div>
+          <p class="section-label">Reports</p>
+          <h1 class="prof-section-title">My Complaints</h1>
+          <p style="color:var(--text-muted);font-size:0.9rem;margin-top:4px;" id="complaintCount">Loading…</p>
+        </div>
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+          <a href="report.html" class="btn btn-primary" style="gap:6px;font-size:0.88rem;padding:9px 16px;">
+            <i data-lucide="plus" style="width:15px;height:15px;"></i> New
+          </a>
+          <button id="clearComplaintsBtn" class="btn btn-outline" style="color:var(--danger);border-color:rgba(224,82,82,0.35);gap:6px;font-size:0.88rem;padding:9px 16px;">
+            <i data-lucide="trash-2" style="width:15px;height:15px;"></i> Clear All
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="filter-tabs" style="margin:1.4rem 0 1rem;">
+        <button class="tab-btn active" data-filter="all">All</button>
+        <button class="tab-btn" data-filter="Pending">Pending</button>
+        <button class="tab-btn" data-filter="In Progress">In Progress</button>
+        <button class="tab-btn" data-filter="Awaiting Verification">Awaiting ⚡</button>
+        <button class="tab-btn" data-filter="Verified">Verified</button>
+        <button class="tab-btn" data-filter="Disputed">Disputed</button>
+      </div>
+
+      <!-- Complaint cards list -->
+      <div id="complaintsBody" class="prof-cards-list"></div>
+    </section>
+
+    <!-- ── COMPLAINT DETAIL VIEW ── -->
+    <section class="prof-tab" id="tab-detail">
+      <button class="prof-back-btn" id="profBackBtn">
+        <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
+        Back to My Complaints
+      </button>
+      <div id="complaintDetailContent"></div>
+    </section>
+
+  </main>
 </div>
 
 <script src="script.js"></script>
