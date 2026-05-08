@@ -484,5 +484,5 @@ app.listen(PORT, () => {
   console.log(`\n🚀 WasteWatch server running on http://localhost:${PORT}`);
   console.log(`   MongoDB: ${process.env.MONGO_URI ? "✅ URI loaded" : "❌ Missing"}`);
   console.log(`   JWT:     ${process.env.JWT_SECRET ? "✅ Secret loaded" : "❌ Missing"}`);
-  console.log(`   Email:   ${MAIL_USER ? `✅ ${MAIL_USER}` : "❌ Missing"}\n`);
+  console.log(`   Email:   ${process.env.RESEND_API_KEY ? "✅ Resend ready" : "❌ RESEND_API_KEY missing"}\n`);
 });
