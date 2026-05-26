@@ -58,7 +58,7 @@ if (!process.env.BREVO_API_KEY) {
 async function sendOTP(userEmail, otpCode) {
   const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
   const sendSmtpEmail = {
-    sender: { name: "WasteWatch", email: "ekbotesushilendr0@gmail.com" },
+    sender: { name: "WasteWatch", email: "ekbotesushilendr0@11186641.brevosend.com" }, // ✅ FIXED: use brevosend.com domain
     to: [{ email: userEmail }],
     subject: "WasteWatch — Your Verification Code",
     htmlContent: `
@@ -475,8 +475,6 @@ app.post("/api/admin/make-worker", verifyToken, verifyAdmin, async (req, res) =>
     res.status(500).json({ error: "Failed to promote user." });
   }
 });
-
-// ─── COMPLAINT ROUTES ─────────────────────────────────────────────
 
 // ─── COMPLAINT ROUTES ─────────────────────────────────────────────
 
