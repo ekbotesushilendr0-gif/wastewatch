@@ -5,10 +5,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard - WasteWatch</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/base.css?v=20260525-2">
+  <link rel="stylesheet" href="css/admin.css?v=20260525-2">
+  <link rel="stylesheet" href="css/modal.css?v=20260525-2">
+  <link rel="stylesheet" href="css/mobile.css?v=20260525-2">
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="js/common.js?v=20260525-2"></script>
+  <script defer src="js/admin.js?v=20260525-2"></script>
   <style>
     #adminMapContainer {
       height: 420px;
@@ -34,6 +40,7 @@
       <li><a href="profile.html">Profile</a></li>
       <li><a href="city-status.html">City Status</a></li>
       <li><a href="admin.html" class="active">Admin</a></li>
+      <li><a href="worker.html">Worker</a></li>
       <li><a href="login.html" class="btn-nav nav-login-link">Login</a></li>
     </ul>
   </nav>
@@ -64,6 +71,23 @@
       </div>
     </section>
 
+    <!-- Make worker -->
+    <section class="admin-section" style="margin-top:0;margin-bottom:2rem;">
+      <div class="admin-section-header">
+        <p class="section-label">Worker Access</p>
+        <h2>Promote User to Worker</h2>
+      </div>
+      <div class="admin-card">
+        <form id="makeWorkerForm" style="display:flex;gap:0.8rem;align-items:flex-end;flex-wrap:wrap;">
+          <div class="form-group" style="flex:1;min-width:240px;margin-bottom:0;">
+            <label for="makeWorkerEmail">Email Address</label>
+            <input type="email" id="makeWorkerEmail" class="form-control" placeholder="worker@example.com" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Make Worker</button>
+        </form>
+      </div>
+    </section>
+
     <!-- Summary cards -->
     <section class="admin-summary-ext" id="adminSummaryCards"></section>
 
@@ -73,20 +97,7 @@
         <p class="section-label">Complaints Table</p>
         <h2>All Complaints</h2>
       </div>
-      <div class="complaints-table-wrap">
-        <table class="complaints-table">
-          <thead>
-            <tr>
-              <th>Image</th>
-              <th>Location &amp; User</th>
-              <th>Description</th>
-              <th>Status</th>
-              <th>Proof</th>
-            </tr>
-          </thead>
-          <tbody id="adminComplaintsBody"></tbody>
-        </table>
-      </div>
+      <div id="adminComplaintsBody" class="admin-complaints-list"></div>
     </section>
 
     <!-- Map section -->
@@ -94,7 +105,7 @@
       <div class="admin-section-header">
         <p class="section-label">Map Section</p>
         <h2>Reported Locations</h2>
-        <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.3rem;display:flex;align-items:center;gap:12px;">
+        <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.3rem;display:flex;align-items:center;flex-wrap:wrap;gap:12px;">
           <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--danger);margin-right:4px;"></span> Pending</span>
           <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3558b0;margin-right:4px;"></span> In Progress</span>
           <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green-dark);margin-right:4px;"></span> Resolved</span>
@@ -104,9 +115,6 @@
     </section>
   </main>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="script.js"></script>
 </body>
 
 </html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Worker Dashboard — WasteWatch</title>
+  <link rel="stylesheet" href="css/base.css?v=20260526-2">
+  <link rel="stylesheet" href="css/dashboard.css?v=20260526-2">
+  <link rel="stylesheet" href="css/admin.css?v=20260526-2">
+  <link rel="stylesheet" href="css/modal.css?v=20260526-2">
+  <link rel="stylesheet" href="css/mobile.css?v=20260526-2">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="js/common.js?v=20260526-2"></script>
+  <script defer src="js/worker.js?v=20260526-2"></script>
+  <style>
+    #workerMapContainer {
+      height: 420px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      box-shadow: var(--shadow);
+      z-index: 0;
+    }
+  </style>
+</head>
+<body id="workerPage">
+  <nav>
+    <a href="index.html" class="nav-logo">
+      <div class="logo-icon"><i data-lucide="recycle"></i></div>
+      WasteWatch
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="report.html">Report Waste</a></li>
+      <li><a href="profile.html">Profile</a></li>
+      <li><a href="city-status.html">City Status</a></li>
+      <li><a href="admin.html">Admin</a></li>
+      <li><a href="worker.html" class="active">Worker</a></li>
+      <li><a href="login.html" class="btn-nav nav-login-link">Login</a></li>
+    </ul>
+  </nav>
+
+  <main class="worker-wrap" style="visibility:hidden;" id="workerMain">
+    <header class="admin-header">
+      <div>
+        <p class="section-label">Worker Panel</p>
+        <h1>My Assignments</h1>
+        <p>Complaints assigned to you by the admin.</p>
+        <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.3rem;"><i data-lucide="user" style="width:14px;height:14px;display:inline-block;vertical-align:-2px;"></i> <span id="workerEmailDisplay"></span></p>
+      </div>
+    </header>
+
+    <!-- Summary cards -->
+    <section class="admin-summary" id="workerSummaryCards"></section>
+
+    <!-- Filter Tabs -->
+    <section class="admin-section" style="margin-top: 1rem;">
+      <div class="filter-tabs" id="workerFilterTabs">
+        <button class="tab-btn active" data-status="All">All</button>
+        <button class="tab-btn" data-status="In Progress">In Progress</button>
+        <button class="tab-btn" data-status="Awaiting Verification">Awaiting Verification</button>
+        <button class="tab-btn" data-status="Verified">Verified</button>
+        <button class="tab-btn" data-status="Disputed">Disputed</button>
+      </div>
+    </section>
+
+    <!-- Complaints Grid -->
+    <section class="admin-section" style="margin-top: 1.5rem;">
+      <div id="workerTasksGrid" class="ww-tasks-grid"></div>
+    </section>
+
+    <!-- Map section -->
+    <section class="admin-section">
+      <div class="admin-section-header">
+        <p class="section-label">Map Section</p>
+        <h2>Assigned Locations</h2>
+        <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.3rem;display:flex;align-items:center;gap:12px;">
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3558b0;margin-right:4px;"></span> In Progress</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f5a623;margin-right:4px;"></span> Awaiting Verification</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#2d8a4e;margin-right:4px;"></span> Verified</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e05252;margin-right:4px;"></span> Disputed</span>
+        </p>
+      </div>
+      <div id="workerMapContainer"></div>
+    </section>
+  </main>
+
+</body>
+</html>

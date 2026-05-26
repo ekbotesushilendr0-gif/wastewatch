@@ -4,10 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>City Status - WasteWatch</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/mobile.css">
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="js/common.js"></script>
+  <script defer src="js/city-status.js"></script>
   <style>
     #cityStatusMap {
       height: 420px;
@@ -34,6 +39,7 @@
     <li><a href="profile.html">Profile</a></li>
     <li><a href="city-status.html" class="active">City Status</a></li>
     <li><a href="admin.html">Admin</a></li>
+    <li><a href="worker.html">Worker</a></li>
     <li><a href="login.html" class="btn-nav nav-login-link">Login</a></li>
   </ul>
 </nav>
@@ -69,7 +75,7 @@
     <div class="admin-section-header">
       <p class="section-label">Map Section</p>
       <h2>City Condition Map</h2>
-      <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.3rem;display:flex;align-items:center;gap:12px;">
+      <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.3rem;display:flex;align-items:center;flex-wrap:wrap;gap:12px;">
         <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--danger);margin-right:4px;"></span> Pending</span>
         <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3558b0;margin-right:4px;"></span> In Progress</span>
         <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green-dark);margin-right:4px;"></span> Resolved</span>
@@ -80,8 +86,5 @@
   </section>
 </main>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="script.js"></script>
 </body>
 </html>
