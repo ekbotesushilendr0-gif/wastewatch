@@ -218,12 +218,58 @@ if (document.getElementById("workerMain")) {
               <span><i data-lucide="calendar" style="width:12px;height:12px;"></i> ${new Date(c.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}</span>
               <span><i data-lucide="user" style="width:12px;height:12px;"></i> ${c.userEmail || '—'}</span>
             </div>
+            ${c.status !== 'Resolved' && c.deadlineAt ? `
+            <div class="admin-deadline-row" data-deadline="${c.deadlineAt}" style="margin-top:8px;display:flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:600;">
+              <i data-lucide="timer" style="width:12px;height:12px;flex-shrink:0;"></i>
+              <span class="admin-deadline-label">Calculating…</span>
+            </div>` : ''}
           </div>
           <div class="ww-task-actions">${actionHtml}</div>
         </div>`;
     }).join("");
     
     if (window.lucide) window.lucide.createIcons();
+
+    // Setup live deadline countdown
+    if (window._workerDeadlineTimer) clearInterval(window._workerDeadlineTimer);
+    function tickWorkerDeadlines() {
+      document.querySelectorAll('.admin-deadline-row[data-deadline]').forEach(row => {
+        const deadline = new Date(row.dataset.deadline);
+        const diffMs = deadline - Date.now();
+        const label = row.querySelector('.admin-deadline-label');
+        const icon  = row.querySelector('[data-lucide="timer"]');
+        if (!label) return;
+
+        if (diffMs <= 0) {
+          label.textContent = 'OVERDUE — escalating…';
+          row.style.color = '#dc2626';
+          if (icon) icon.style.color = '#dc2626';
+          return;
+        }
+
+        const totalSecs = Math.floor(diffMs / 1000);
+        const hrs  = Math.floor(totalSecs / 3600);
+        const mins = Math.floor((totalSecs % 3600) / 60);
+        const secs = totalSecs % 60;
+
+        let text = '';
+        if (hrs > 0)  text = `${hrs}h ${mins}m left`;
+        else if (mins > 0) text = `${mins}m ${secs}s left`;
+        else          text = `${secs}s left`;
+
+        label.textContent = text;
+
+        if (diffMs > 3 * 60 * 1000) {
+          row.style.color = '#16a34a'; if (icon) icon.style.color = '#16a34a';
+        } else if (diffMs > 1 * 60 * 1000) {
+          row.style.color = '#d97706'; if (icon) icon.style.color = '#d97706';
+        } else {
+          row.style.color = '#dc2626'; if (icon) icon.style.color = '#dc2626';
+        }
+      });
+    }
+    tickWorkerDeadlines();
+    window._workerDeadlineTimer = setInterval(tickWorkerDeadlines, 1000);
 
     document.querySelectorAll('.ww-task-card').forEach(card => {
       card.addEventListener('click', () => {
@@ -336,6 +382,14 @@ if (document.getElementById("workerMain")) {
               <div class="ww-detail-info-lbl">Urgency</div>
               <div class="ww-detail-info-val"><span class="ww-task-urgency ${(c.urgency||'low').toLowerCase()}" style="position:static;font-size:0.75rem;">${c.urgency || 'Low'}</span></div>
             </div>
+            ${c.status !== 'Resolved' && c.deadlineAt ? `
+            <div class="ww-detail-info-item" style="grid-column:1/-1;">
+              <div class="ww-detail-info-lbl">Deadline Countdown</div>
+              <div class="admin-deadline-row" data-deadline="${c.deadlineAt}" style="display:flex;align-items:center;gap:5px;font-size:0.85rem;font-weight:700;">
+                <i data-lucide="timer" style="width:14px;height:14px;flex-shrink:0;"></i>
+                <span class="admin-deadline-label">Calculating…</span>
+              </div>
+            </div>` : ''}
             <div class="ww-detail-info-item">
               <div class="ww-detail-info-lbl">Reported By</div>
               <div class="ww-detail-info-val" style="font-size:0.82rem;">${c.userEmail || '—'}</div>
