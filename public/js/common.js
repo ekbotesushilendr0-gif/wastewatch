@@ -31,9 +31,12 @@ const getRole = () => getUser()?.role || "user";
 function statusClass(s) { return (s || "pending").toLowerCase().replace(/\s+/g, "-"); }
 function statusSlug(s) { return (s || "pending").toLowerCase().replace(/\s+/g, "-"); }
 function statusSlugAdmin(s) {
-  if (s === "Awaiting Verification") return "awaiting-verification";
-  if (s === "Verified") return "verified";
+  if (s === "Awaiting Approval") return "awaiting-verification"; // reuse same CSS class
+  if (s === "Awaiting Verification") return "awaiting-verification"; // legacy fallback
+  if (s === "Verified") return "resolved";
   if (s === "Disputed") return "disputed";
+  if (s === "Resolved") return "resolved";
+  if (s === "Escalated") return "escalated";
   return (s || "pending").toLowerCase().replace(/\s+/g, "-");
 }
 
@@ -399,7 +402,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((r) => r.json())
       .then((all) => {
         document.getElementById("stat-reports").textContent = all.length || 0;
-        document.getElementById("stat-resolved").textContent = all.filter((c) => c.status === "Verified" || c.status === "Resolved").length;
+        document.getElementById("stat-resolved").textContent = all.filter((c) => c.status === "Resolved").length;
       })
       .catch(() => {
         document.getElementById("stat-reports").textContent = "—";

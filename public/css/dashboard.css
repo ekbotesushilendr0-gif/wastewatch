@@ -266,6 +266,7 @@
 .prof-status.awaiting-verification { background: rgba(245,166,35,0.18); color: #7a4f00; border: 1px solid rgba(245,166,35,0.35); }
 .prof-status.verified { background: rgba(45,138,78,0.15); color: #1a5c33; }
 .prof-status.disputed { background: rgba(224,82,82,0.15); color: #b52b2b; }
+.prof-status.escalated { background: rgba(237,137,54,0.15); color: #c65d07; border: 1px solid rgba(237,137,54,0.3); }
 
 .prof-c-card.awaiting {
   border-color: rgba(245,166,35,0.55); background: rgba(245,166,35,0.03);

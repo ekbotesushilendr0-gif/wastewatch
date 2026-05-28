@@ -49,10 +49,10 @@ if (document.getElementById("adminComplaintsBody")) {
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
     const color =
-      complaint.status === "Verified" ? "#2d8a4e" :
-      complaint.status === "In Progress" ? "#3558b0" :
-      complaint.status === "Awaiting Verification" ? "#f5a623" :
-      complaint.status === "Disputed" ? "#e05252" :
+      complaint.status === "Resolved"          ? "#2d8a4e" :
+      complaint.status === "In Progress"        ? "#3558b0" :
+      complaint.status === "Awaiting Approval"  ? "#f5a623" :
+      complaint.isEscalated                     ? "#dc2626" :
       "#e05252";
 
     L.marker([lat, lng], {
@@ -183,7 +183,7 @@ if (document.getElementById("adminComplaintsBody")) {
     try {
       const res = await fetch(`${API}/complaints/all`);
       const raw = await res.json();
-      all = raw.filter(c => c.status !== "Verified");
+      all = raw.filter(c => c.status !== "Resolved");
     } catch { 
       showToast("Could not load complaints.", "error"); 
     }
@@ -194,8 +194,8 @@ if (document.getElementById("adminComplaintsBody")) {
         total:    all.length,
         pending:  all.filter(c => c.status === "Pending").length,
         inProg:   all.filter(c => c.status === "In Progress").length,
-        awaiting: all.filter(c => c.status === "Awaiting Verification").length,
-        disputed: all.filter(c => c.status === "Disputed").length,
+        awaiting: all.filter(c => c.status === "Awaiting Approval").length,
+        escalated: all.filter(c => c.isEscalated).length,
       };
       summaryEl.innerHTML = `
         <div class="admin-stat-card">
@@ -234,17 +234,17 @@ if (document.getElementById("adminComplaintsBody")) {
           </div>
           <div class="admin-stat-info">
             <div class="admin-stat-num" style="color:#7a4f00;">${counts.awaiting}</div>
-            <div class="admin-stat-lbl">Awaiting Verification</div>
+            <div class="admin-stat-lbl">Awaiting Approval</div>
           </div>
         </div>
 
         <div class="admin-stat-card">
-          <div class="admin-stat-icon" style="background:rgba(224,82,82,0.12);color:var(--danger);">
-            <i data-lucide="alert-circle" style="width:20px;height:20px;"></i>
+          <div class="admin-stat-icon" style="background:rgba(220,38,38,0.12);color:#dc2626;">
+            <i data-lucide="alert-triangle" style="width:20px;height:20px;"></i>
           </div>
           <div class="admin-stat-info">
-            <div class="admin-stat-num" style="color:var(--danger);">${counts.disputed}</div>
-            <div class="admin-stat-lbl">Disputed</div>
+            <div class="admin-stat-num" style="color:#dc2626;">${counts.escalated}</div>
+            <div class="admin-stat-lbl">Escalated</div>
           </div>
         </div>`;
     }
@@ -282,14 +282,17 @@ if (document.getElementById("adminComplaintsBody")) {
         : `<span style="font-size:0.78rem;color:var(--text-muted);">—</span>`;
 
       let cardStatusHtml = '';
-      if (c.status === 'Pending' || c.status === 'In Progress') {
-        cardStatusHtml = `<span class="status-badge-admin pending">${c.status === 'Pending' ? 'Pending' : 'Worker Assigned'}</span>`;
-      } else if (c.status === 'Awaiting Verification') {
-        cardStatusHtml = `<span class="status-badge-admin awaiting-verification">Awaiting Verification</span>`;
-      } else if (c.status === 'Verified') {
-        cardStatusHtml = `<span class="status-badge-admin verified">Verified</span>`;
-      } else if (c.status === 'Disputed') {
-        cardStatusHtml = `<span class="status-badge-admin disputed">Disputed</span>`;
+      if (c.status === 'Pending') {
+        cardStatusHtml = `<span class="status-badge-admin pending">Pending</span>`;
+      } else if (c.status === 'In Progress') {
+        cardStatusHtml = `<span class="status-badge-admin in-progress">Worker Assigned</span>`;
+      } else if (c.status === 'Awaiting Approval') {
+        cardStatusHtml = `<span class="status-badge-admin awaiting-verification">⏳ Awaiting Approval</span>`;
+      } else if (c.status === 'Resolved') {
+        cardStatusHtml = `<span class="status-badge-admin resolved">✓ Resolved</span>`;
+      }
+      if (c.isEscalated && c.status !== 'Resolved') {
+        cardStatusHtml += `<span class="escalation-flag">⚠ Escalated (${c.escalationCount}×)</span>`;
       }
 
       return `
@@ -326,12 +329,64 @@ if (document.getElementById("adminComplaintsBody")) {
                 <span><i data-lucide="calendar" style="width:11px;height:11px;"></i> ${date}</span>
                 <span style="font-weight:600;color:var(--green);"><i data-lucide="check-circle-2" style="width:11.5px;height:11.5px;color:var(--green);"></i> ${(c.duplicateCount || 0) + (c.supportCount || 0)} confirmations</span>
               </div>
+              ${c.status !== 'Resolved' && c.deadlineAt ? `
+              <div class="admin-deadline-row" data-deadline="${c.deadlineAt}" style="margin-top:6px;display:flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:600;">
+                <i data-lucide="timer" style="width:12px;height:12px;flex-shrink:0;"></i>
+                <span class="admin-deadline-label">Calculating…</span>
+              </div>` : ''}
             </div>
           </div>
         </div>`;
     }).join('');
 
     if (window.lucide) window.lucide.createIcons();
+
+    // ── Live deadline countdown ───────────────────────────────────────
+    // Clear any previous timer
+    if (window._adminDeadlineTimer) clearInterval(window._adminDeadlineTimer);
+
+    function tickDeadlines() {
+      document.querySelectorAll('.admin-deadline-row[data-deadline]').forEach(row => {
+        const deadline = new Date(row.dataset.deadline);
+        const diffMs = deadline - Date.now();
+        const label = row.querySelector('.admin-deadline-label');
+        const icon  = row.querySelector('[data-lucide="timer"]');
+        if (!label) return;
+
+        if (diffMs <= 0) {
+          // Overdue
+          label.textContent = 'OVERDUE — escalating…';
+          row.style.color = '#dc2626';
+          if (icon) icon.style.color = '#dc2626';
+          return;
+        }
+
+        const totalSecs = Math.floor(diffMs / 1000);
+        const hrs  = Math.floor(totalSecs / 3600);
+        const mins = Math.floor((totalSecs % 3600) / 60);
+        const secs = totalSecs % 60;
+
+        let text = '';
+        if (hrs > 0)  text = `${hrs}h ${mins}m left`;
+        else if (mins > 0) text = `${mins}m ${secs}s left`;
+        else          text = `${secs}s left`;
+
+        label.textContent = text;
+
+        // Color: green > 50%, orange < 50%, red < 20%
+        // We use a 5-min base for test mode; color by ratio of time left
+        if (diffMs > 3 * 60 * 1000) {
+          row.style.color = '#16a34a'; if (icon) icon.style.color = '#16a34a'; // green
+        } else if (diffMs > 1 * 60 * 1000) {
+          row.style.color = '#d97706'; if (icon) icon.style.color = '#d97706'; // orange
+        } else {
+          row.style.color = '#dc2626'; if (icon) icon.style.color = '#dc2626'; // red
+        }
+      });
+    }
+
+    tickDeadlines(); // run immediately
+    window._adminDeadlineTimer = setInterval(tickDeadlines, 1000);
 
     // Click handling done via event delegation at the bottom of this block
 
@@ -451,6 +506,38 @@ if (document.getElementById("adminComplaintsBody")) {
     loadAdminComplaints();
   };
 
+  window.adminMarkResolved = async function (id) {
+    if (!confirm("Mark this complaint as Resolved? A completion email will be sent to the user.")) return;
+    try {
+      const res = await fetch(`${API}/admin/complaints/${id}/mark-resolved`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + getToken() },
+        body: JSON.stringify({ resolutionNote: "The issue has been successfully resolved by the municipal team." })
+      });
+      if (!res.ok) throw new Error();
+      showToast("✅ Complaint marked as Resolved and email sent to user.");
+    } catch {
+      showToast("Failed to mark as resolved.", "error");
+    }
+    loadAdminComplaints();
+  };
+
+  window.adminApproveResolution = async function (id) {
+    if (!confirm("Approve this resolution and mark as Resolved? A completion email will be sent to the user.")) return;
+    try {
+      const res = await fetch(`${API}/admin/complaints/${id}/mark-resolved`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + getToken() },
+        body: JSON.stringify({ resolutionNote: "Resolution approved by administrator. The issue has been successfully resolved." })
+      });
+      if (!res.ok) throw new Error();
+      showToast("✅ Resolution approved! User notified by email.");
+    } catch {
+      showToast("Failed to approve resolution.", "error");
+    }
+    loadAdminComplaints();
+  };
+
   function getComplaintCoords(complaint, cache) {
     const lat = Number(complaint.lat);
     const lng = Number(complaint.lng);
@@ -494,11 +581,11 @@ if (document.getElementById("adminComplaintsBody")) {
     complaints.forEach((c) => {
       getComplaintCoords(c, cache).then((coords) => {
         if (!coords) return;
-        const color = 
-          c.status === "Verified" ? "#2d8a4e" : 
-          c.status === "In Progress" ? "#3558b0" : 
-          c.status === "Awaiting Verification" ? "#f5a623" : 
-          c.status === "Disputed" ? "#e05252" : 
+        const color =
+          c.status === "Resolved"          ? "#2d8a4e" :
+          c.status === "In Progress"        ? "#3558b0" :
+          c.status === "Awaiting Approval"  ? "#f5a623" :
+          c.isEscalated                     ? "#dc2626" :
           "#e05252";
         L.marker(coords, { 
           icon: L.divIcon({ 
@@ -516,6 +603,22 @@ if (document.getElementById("adminComplaintsBody")) {
   async function initAdminPage() {
     const user = await verifyAdminPageAccess();
     if (!user) return;
+    
+    try {
+      const res = await fetch(`${API}/admin/workers`, {
+        headers: { Authorization: "Bearer " + getToken() }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const datalist = document.createElement("datalist");
+        datalist.id = "workerList";
+        datalist.innerHTML = (data.workers || []).map(w => `<option value="${w.email}">${w.name ? w.name + ' (' + w.email + ')' : w.email}</option>`).join("");
+        document.body.appendChild(datalist);
+      }
+    } catch(err) {
+      console.error("Failed to load worker list for autocomplete", err);
+    }
+    
     setupMakeAdminForm();
     setupMakeWorkerForm();
     loadAdminComplaints();
@@ -538,6 +641,15 @@ if (document.getElementById("adminComplaintsBody")) {
       const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
       const date = new Date(c.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
 
+      // Mark as seen if not already seen
+      if (!c.seenByAdmin) {
+        c.seenByAdmin = true;
+        fetch(`${API}/admin/complaints/${id}/mark-seen`, {
+          method: 'POST',
+          headers: { Authorization: "Bearer " + getToken() }
+        }).catch(err => console.error("Error marking seen:", err));
+      }
+
       let statusHtml = '';
       if (c.status === 'Pending' || c.status === 'In Progress') {
         statusHtml = `
@@ -554,10 +666,10 @@ if (document.getElementById("adminComplaintsBody")) {
               <div>
                 <label style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;display:block;">Assign Worker</label>
                 <div class="worker-assign-row" style="display:flex;gap:8px;">
-                  <input type="email" class="worker-assign-input form-control"
+                  <input type="email" class="worker-assign-input form-control" list="workerList"
                     placeholder="worker@example.com"
                     value="${c.workerEmail || ''}"
-                    style="flex:1;min-width:0;">
+                    style="flex:1;min-width:0;" autocomplete="off">
                   <button class="btn btn-primary" onclick="assignWorker('${c._id}', this)" style="padding:0 1.2rem;white-space:nowrap;">Assign</button>
                 </div>
                 ${c.workerEmail ? `
@@ -567,33 +679,27 @@ if (document.getElementById("adminComplaintsBody")) {
               </div>
             </div>
           </div>`;
-      } else if (c.status === 'Awaiting Verification') {
+      } else if (c.status === 'Awaiting Approval') {
         statusHtml = `
-          <div style="background:rgba(245,166,35,0.08);border:1.5px solid rgba(245,166,35,0.3);border-radius:12px;padding:1.2rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:12px;">
-            <div style="background:rgba(245,166,35,0.15);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#7a4f00;">
-              <i data-lucide="clock"></i>
-            </div>
-            <div>
-              <h4 style="color:#7a4f00;margin:0;font-size:0.95rem;">Awaiting Verification</h4>
-              <p style="margin:2px 0 0;font-size:0.8rem;color:#7a4f00;opacity:0.8;">The user needs to confirm the cleanup before it is fully resolved.</p>
-            </div>
-          </div>`;
-      } else if (c.status === 'Disputed') {
-        statusHtml = `
-          <div style="background:rgba(224,82,82,0.08);border:1.5px solid rgba(224,82,82,0.3);border-radius:12px;padding:1.2rem;margin-bottom:1.5rem;">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-              <div style="background:rgba(224,82,82,0.15);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--danger);">
-                <i data-lucide="alert-triangle"></i>
+          <div style="background:rgba(245,166,35,0.08);border:1.5px solid rgba(245,166,35,0.4);border-radius:12px;padding:1.2rem;margin-bottom:1rem;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+              <div style="background:rgba(245,166,35,0.2);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#7a4f00;flex-shrink:0;">
+                <i data-lucide="shield-check" style="width:22px;height:22px;"></i>
               </div>
               <div>
-                <h4 style="color:var(--danger);margin:0;font-size:0.95rem;">User Disputed Resolution</h4>
-                <p style="margin:2px 0 0;font-size:0.8rem;color:var(--danger);opacity:0.8;">The user claims the issue was not resolved properly.</p>
+                <h4 style="color:#7a4f00;margin:0;font-size:0.97rem;font-weight:700;">Worker Proof Submitted</h4>
+                <p style="margin:3px 0 0;font-size:0.82rem;color:#7a4f00;opacity:0.85;line-height:1.4;">Review the proof photo above, then approve or send back.</p>
               </div>
             </div>
-            ${c.disputeReason ? `<div style="background:#fff;border:1px solid rgba(224,82,82,0.2);padding:12px;border-radius:8px;font-size:0.85rem;color:var(--text);margin-bottom:12px;"><strong>User says:</strong> "${c.disputeReason}"</div>` : ''}
-            <button class="btn btn-outline" onclick="adminReopen('${c._id}')" style="width:100%;color:#3558b0;border-color:rgba(53,88,176,0.3);display:flex;align-items:center;justify-content:center;gap:6px;">
-              <i data-lucide="rotate-ccw" style="width:16px;height:16px;"></i> Reopen Complaint
-            </button>
+            ${c.resolutionNote ? `<div style="background:#fffbeb;border:1px solid rgba(245,166,35,0.3);padding:10px 14px;border-radius:8px;font-size:0.85rem;color:#5a3e00;margin-bottom:1rem;"><strong>Worker note:</strong> ${c.resolutionNote}</div>` : ''}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <button class="btn btn-success" onclick="adminApproveResolution('${c._id}')" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#16a34a;border:none;color:white;font-weight:700;">
+                <i data-lucide="check-circle" style="width:16px;height:16px;"></i> Approve &amp; Resolve
+              </button>
+              <button class="btn btn-outline" onclick="adminReopen('${c._id}')" style="color:#dc2626;border-color:rgba(220,38,38,0.3);display:flex;align-items:center;justify-content:center;gap:6px;">
+                <i data-lucide="rotate-ccw" style="width:16px;height:16px;"></i> Send Back
+              </button>
+            </div>
           </div>`;
       }
 

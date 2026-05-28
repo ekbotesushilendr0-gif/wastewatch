@@ -55,6 +55,97 @@ if (document.getElementById("profilePage")) {
   if (infoEmailEl) infoEmailEl.textContent = user?.email || "—";
   if (infoRoleEl)  infoRoleEl.textContent  = user?.role === "admin" ? "Admin" : user?.role === "worker" ? "Worker" : "User";
 
+  // Profile Name Fetch & Update
+  const infoNameText = document.getElementById("infoNameText");
+  const infoNameInput = document.getElementById("infoNameInput");
+
+  if (infoNameText && infoNameInput) {
+    fetch(`${API}/user/profile`, {
+      headers: { Authorization: "Bearer " + getToken() }
+    })
+    .then(r => r.json())
+    .then(data => {
+      const display = data.name || "User";
+      infoNameText.textContent = display;
+      infoNameInput.value = data.name || "";
+      const mNameEl = document.getElementById("profMName");
+      if (mNameEl) mNameEl.textContent = display;
+    })
+    .catch(() => {});
+  }
+
+  document.addEventListener("click", async (e) => {
+    // Edit Button
+    const editBtn = e.target.closest("#editNameBtn");
+    if (editBtn) {
+      document.getElementById("infoNameText").style.display = "none";
+      editBtn.style.display = "none";
+      document.getElementById("infoNameInput").style.display = "inline-block";
+      document.getElementById("updateNameBtn").style.display = "inline-block";
+      document.getElementById("cancelNameBtn").style.display = "inline-block";
+      document.getElementById("infoNameInput").focus();
+      return;
+    }
+
+    // Cancel Button
+    const cancelBtn = e.target.closest("#cancelNameBtn");
+    if (cancelBtn) {
+      document.getElementById("infoNameInput").style.display = "none";
+      document.getElementById("updateNameBtn").style.display = "none";
+      cancelBtn.style.display = "none";
+      document.getElementById("infoNameText").style.display = "inline-block";
+      document.getElementById("editNameBtn").style.display = "inline-flex";
+      return;
+    }
+
+    // Save Button
+    const updateBtn = e.target.closest("#updateNameBtn");
+    if (updateBtn) {
+      const newName = document.getElementById("infoNameInput").value.trim();
+      updateBtn.disabled = true;
+      updateBtn.textContent = "Saving...";
+      try {
+        const res = await fetch(`${API}/user/profile`, {
+          method: "PUT",
+          headers: { 
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + getToken() 
+          },
+          body: JSON.stringify({ name: newName })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast("Name saved successfully!", "success");
+          const display = newName || "User";
+          document.getElementById("infoNameText").textContent = display;
+          document.getElementById("infoNameInput").value = newName;
+          const mNameEl = document.getElementById("profMName");
+          if (mNameEl) mNameEl.textContent = display;
+          
+          document.getElementById("infoNameInput").style.display = "none";
+          updateBtn.style.display = "none";
+          document.getElementById("cancelNameBtn").style.display = "none";
+          document.getElementById("infoNameText").style.display = "inline-block";
+          document.getElementById("editNameBtn").style.display = "inline-flex";
+        } else {
+          showToast(data.error || "Failed to save", "error");
+        }
+      } catch (err) {
+        showToast("Network error", "error");
+      }
+      updateBtn.disabled = false;
+      updateBtn.textContent = "Save";
+      return;
+    }
+  });
+
+  if (infoNameInput) {
+    infoNameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") document.getElementById("updateNameBtn")?.click();
+      if (e.key === "Escape") document.getElementById("cancelNameBtn")?.click();
+    });
+  }
+
   // ── Tab switching ────────────────────────────────────────
   function showTab(tabId) {
     document.querySelectorAll(".prof-tab").forEach(t => t.classList.remove("active"));
@@ -83,8 +174,8 @@ if (document.getElementById("profilePage")) {
 
   function updateInfoStats() {
     const total    = allComplaints.length;
-    const resolved = allComplaints.filter(c => c.status === "Verified").length;
-    const pending  = allComplaints.filter(c => ["Pending", "Awaiting Verification", "Disputed"].includes(c.status)).length;
+    const resolved = allComplaints.filter(c => ["Verified", "Resolved"].includes(c.status)).length;
+    const pending  = allComplaints.filter(c => ["Pending", "In Progress", "Awaiting Verification", "Disputed", "Escalated"].includes(c.status)).length;
     const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     el("infoStatTotal",    total);
     el("infoStatResolved", resolved);
@@ -182,10 +273,10 @@ if (document.getElementById("profilePage")) {
 
     const timelineSteps = [
       { label: "Complaint Submitted",   done: true },
-      { label: "Seen by Municipality",  done: ["In Progress", "Awaiting Verification", "Verified", "Disputed"].includes(c.status) },
-      { label: "Worker Assigned",       done: ["In Progress", "Awaiting Verification", "Verified", "Disputed"].includes(c.status) },
-      { label: "Cleaning In Progress",  done: ["Awaiting Verification", "Verified"].includes(c.status) },
-      { label: "Awaiting Verification", done: ["Verified"].includes(c.status) },
+      { label: "Seen by Municipality",  done: c.seenByAdmin || ["In Progress", "Awaiting Approval", "Awaiting Verification", "Verified", "Resolved", "Disputed"].includes(c.status) },
+      { label: "Worker Assigned",       done: ["In Progress", "Awaiting Approval", "Awaiting Verification", "Verified", "Resolved", "Disputed"].includes(c.status) },
+      { label: "Cleaning In Progress",  done: ["Awaiting Approval", "Awaiting Verification", "Verified", "Resolved", "Disputed"].includes(c.status) },
+      { label: "Awaiting Verification by Admin", done: ["Verified", "Resolved", "Disputed"].includes(c.status) },
     ];
 
     const timelineHtml = `
@@ -330,6 +421,69 @@ if (document.getElementById("profilePage")) {
             <p>${c.resolutionNote}</p>
           </div>
         ` : ""}
+        ${timelineHtml}`;
+      showTab("detail");
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
+    // ── RESOLVED (Admin marked) ───────────────────────────────
+    if (c.status === "Resolved") {
+      document.getElementById("complaintDetailContent").innerHTML = `
+        <div style="background:linear-gradient(135deg, #e6f7ed 0%, #c6f6d5 100%);border:2px solid #48bb78;border-radius:12px;padding:32px;text-align:center;margin-bottom:1.5rem;">
+          <div style="font-size:3rem;margin-bottom:12px;">✅</div>
+          <h2 style="color:#1a5c33;margin:0 0 8px 0;font-family:'Poppins',sans-serif;">Issue Resolved</h2>
+          <p style="color:#2d5016;margin:0;font-size:0.95rem;">The reported waste management issue has been successfully resolved by the municipal team.</p>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+          <h2 style="font-family:'Poppins',sans-serif;font-size:1.5rem;font-weight:800;flex:1;">${c.category || "Waste Report"}</h2>
+          <span class="prof-status resolved" style="background:#48bb78;color:white;">✓ Resolved</span>
+        </div>
+
+        <div class="prof-detail-meta">
+          <div class="prof-detail-meta-item">
+            <div class="prof-detail-meta-lbl">Date Submitted</div>
+            <div class="prof-detail-meta-val">${date}</div>
+          </div>
+          <div class="prof-detail-meta-item">
+            <div class="prof-detail-meta-lbl">Date Resolved</div>
+            <div class="prof-detail-meta-val">${new Date(c.resolvedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
+          </div>
+          <div class="prof-detail-meta-item">
+            <div class="prof-detail-meta-lbl">Location</div>
+            <div class="prof-detail-meta-val" style="font-size:0.82rem;">${c.location}</div>
+          </div>
+          ${c.description ? `<div class="prof-detail-meta-item" style="grid-column:1/-1;">
+            <div class="prof-detail-meta-lbl">Description</div>
+            <div class="prof-detail-meta-val" style="font-weight:500;font-size:0.88rem;">${c.description}</div>
+          </div>` : ""}
+        </div>
+
+        ${c.resolutionNote ? `
+          <div class="res-note-premium" style="background:#e6f7ed;border-left:4px solid #48bb78;">
+            <div class="res-note-title" style="color:#1a5c33;">Municipal Team Response</div>
+            <p style="color:#2d5016;">${c.resolutionNote}</p>
+          </div>
+        ` : ""}
+
+        <div class="proof-compare-grid">
+          <div class="proof-photo-card">
+            <div class="proof-card-head">Before</div>
+            ${c.imagePath ? `<img src="${c.imagePath}" class="proof-photo-img" alt="Reported" onclick="window.open('${c.imagePath}','_blank')" style="cursor:pointer;">` : `<div class="proof-photo-img" style="display:flex;align-items:center;justify-content:center;background:#eee;color:#999;">No Photo</div>`}
+          </div>
+          <div class="proof-photo-card">
+            <div class="proof-card-head">After</div>
+            ${c.proofImagePath ? `<img src="${c.proofImagePath}" class="proof-photo-img" alt="Resolved" onclick="window.open('${c.proofImagePath}','_blank')" style="cursor:pointer;">` : `<div class="proof-photo-img" style="display:flex;align-items:center;justify-content:center;background:#eee;color:#999;">No Photo</div>`}
+          </div>
+        </div>
+
+        <div style="background:#f0f9ff;border:1px solid #90cdf4;border-radius:8px;padding:16px;margin-top:1.5rem;">
+          <p style="color:#2c5282;font-size:0.9rem;margin:0;line-height:1.5;">
+            <strong>Thank you for reporting this issue!</strong> Your feedback helps us maintain cleaner and healthier communities. Your contribution is valued and appreciated.
+          </p>
+        </div>
+
         ${timelineHtml}`;
       showTab("detail");
       if (window.lucide) window.lucide.createIcons();

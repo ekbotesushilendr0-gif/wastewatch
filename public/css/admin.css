@@ -80,8 +80,10 @@
 .status-badge-admin.pending              { background: rgba(245,166,35,0.15); color: #9b6a00; }
 .status-badge-admin.in-progress          { background: rgba(53,88,176,0.13); color: #3558b0; }
 .status-badge-admin.awaiting-verification{ background: rgba(245,166,35,0.22); color: #7a4f00; border: 1px solid rgba(245,166,35,0.4); }
+.status-badge-admin.resolved             { background: rgba(72,187,120,0.15); color: #1a5c33; }
 .status-badge-admin.verified             { background: rgba(45,138,78,0.15); color: var(--green-dark); }
 .status-badge-admin.disputed             { background: rgba(224,82,82,0.15); color: #b52b2b; }
+.status-badge-admin.escalated            { background: rgba(237,137,54,0.15); color: #c65d07; }
 
 .disputed-reason-box {
   margin-top: 0.5rem; background: rgba(224,82,82,0.06); border: 1px solid rgba(224,82,82,0.2);

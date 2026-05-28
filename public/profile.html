@@ -122,6 +122,18 @@
       <div class="prof-info-card">
         <div class="prof-info-card-head">Account Information</div>
         <div class="prof-info-row">
+          <div class="prof-info-lbl"><i data-lucide="user" style="width:15px;height:15px;"></i> Full Name</div>
+          <div class="prof-info-val" style="display:flex; gap:10px; align-items:center;">
+            <span id="infoNameText" style="font-weight:600;">User</span>
+            <button id="editNameBtn" class="btn btn-outline" style="padding:4px 10px; font-size:0.75rem; height:auto; line-height:normal; border-color:#ccc; color:#555;">
+              <i data-lucide="edit-2" style="width:12px;height:12px;"></i> Edit
+            </button>
+            <input type="text" id="infoNameInput" style="display:none; padding:6px; border:1px solid #ccc; border-radius:4px; max-width:200px;" placeholder="Your Full Name">
+            <button id="updateNameBtn" class="btn btn-primary" style="display:none; padding:6px 12px; font-size:0.8rem; height:auto; line-height:normal;">Save</button>
+            <button id="cancelNameBtn" class="btn btn-outline" style="display:none; padding:6px 12px; font-size:0.8rem; height:auto; line-height:normal; border-color:#ccc; color:#555;">Cancel</button>
+          </div>
+        </div>
+        <div class="prof-info-row">
           <div class="prof-info-lbl"><i data-lucide="mail" style="width:15px;height:15px;"></i> Email</div>
           <div class="prof-info-val" id="infoEmail">—</div>
         </div>

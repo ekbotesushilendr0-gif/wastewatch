@@ -75,10 +75,25 @@ if (document.getElementById("workerMain")) {
         workerAllComplaints = await loadWorkerComplaintsFallback();
       }
 
+      // Setup displays
       const user = currentWorker || getUser();
       if (document.getElementById("workerEmailDisplay")) {
         document.getElementById("workerEmailDisplay").textContent = user?.email || "";
       }
+      
+      // Fetch actual name from profile
+      fetch(`${API}/user/profile`, {
+        headers: { Authorization: "Bearer " + getToken() }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.name && document.getElementById("workerNameDisplay")) {
+          document.getElementById("workerNameDisplay").textContent = data.name;
+        }
+      })
+      .catch(err => console.error("Error fetching worker profile name:", err));
+
+      // Initial render
       updateWorkerSummary();
       renderWorkerTable(workerAllComplaints);
       
@@ -123,14 +138,14 @@ if (document.getElementById("workerMain")) {
     if (!summaryEl) return;
     const total = workerAllComplaints.length;
     const inProg = workerAllComplaints.filter(c => c.status === "In Progress").length;
-    const awaiting = workerAllComplaints.filter(c => c.status === "Awaiting Verification").length;
-    const verified = workerAllComplaints.filter(c => c.status === "Verified").length;
+    const awaiting = workerAllComplaints.filter(c => c.status === "Awaiting Approval").length;
+    const resolved = workerAllComplaints.filter(c => c.status === "Resolved").length;
     
     summaryEl.innerHTML = `
       <div class="admin-card"><span>Total Assigned</span><strong>${total}</strong></div>
       <div class="admin-card" style="border-color:rgba(53,88,176,0.3)"><span>In Progress</span><strong style="color:#3558b0">${inProg}</strong></div>
-      <div class="admin-card" style="border-color:rgba(245,166,35,0.4)"><span>Submitted for Review</span><strong style="color:#7a4f00">${awaiting}</strong></div>
-      <div class="admin-card resolved"><span>Verified</span><strong>${verified}</strong></div>`;
+      <div class="admin-card" style="border-color:rgba(245,166,35,0.4)"><span>Awaiting Approval</span><strong style="color:#7a4f00">${awaiting}</strong></div>
+      <div class="admin-card resolved"><span>Resolved</span><strong>${resolved}</strong></div>`;
   }
 
   function renderWorkerTable(complaints) {
@@ -150,7 +165,7 @@ if (document.getElementById("workerMain")) {
 
     grid.innerHTML = complaints.map(c => {
       let actionHtml = "";
-      if (['Pending', 'In Progress', 'Disputed'].includes(c.status)) {
+      if (['Pending', 'In Progress'].includes(c.status)) {
         actionHtml = `
           <button class="btn-directions" onclick="event.stopPropagation(); openDirectionsOnMap(window.workerMapInstance, ${c.lat}, ${c.lng}, '${c.location.replace(/'/g, "\\'")}')">
             <i data-lucide="navigation-2" style="width:15px;height:15px;"></i> Directions
@@ -158,15 +173,15 @@ if (document.getElementById("workerMain")) {
           <button class="btn-upload-proof" onclick="event.stopPropagation(); openWorkerResolveModal('${c._id}')">
             <i data-lucide="camera" style="width:15px;height:15px;"></i> Upload Proof
           </button>`;
-      } else if (c.status === "Awaiting Verification") {
+      } else if (c.status === "Awaiting Approval") {
         actionHtml = `
           <div class="ww-task-status-msg awaiting">
-            <i data-lucide="clock" style="width:14px;height:14px;"></i> Waiting for user to verify
+            <i data-lucide="clock" style="width:14px;height:14px;"></i> Proof submitted — Awaiting Admin Approval
           </div>`;
-      } else if (c.status === "Verified") {
+      } else if (c.status === "Resolved") {
         actionHtml = `
           <div class="ww-task-status-msg verified">
-            <i data-lucide="check-circle" style="width:14px;height:14px;"></i> Completed & Verified
+            <i data-lucide="check-circle" style="width:14px;height:14px;"></i> Completed & Resolved
           </div>`;
       } else if (c.status === "Disputed") {
         actionHtml = `
@@ -270,10 +285,10 @@ if (document.getElementById("workerMain")) {
         if (!coords) return;
         bounds.push(coords);
         const color = 
-          c.status === "Verified" ? "#2d8a4e" : 
-          c.status === "In Progress" ? "#3558b0" : 
-          c.status === "Awaiting Verification" ? "#f5a623" : 
-          c.status === "Disputed" ? "#e05252" : 
+          c.status === "Resolved"          ? "#2d8a4e" : 
+          c.status === "In Progress"        ? "#3558b0" : 
+          c.status === "Awaiting Approval"  ? "#f5a623" : 
+          c.isEscalated                     ? "#dc2626" :
           "#e05252";
         L.marker(coords, {
           icon: L.divIcon({ className: "", html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] })
@@ -353,7 +368,7 @@ if (document.getElementById("workerMain")) {
             <button class="btn-directions" style="flex:1;" onclick="openDirectionsOnMap(window.workerDetailMapInstance, ${lat}, ${lng}, '${c.location.replace(/'/g, "\\'")}')">
               <i data-lucide="navigation-2" style="width:16px;height:16px;"></i> Get Directions
             </button>` : ''}
-          ${['Pending', 'In Progress', 'Disputed'].includes(c.status) ? `
+          ${['Pending', 'In Progress'].includes(c.status) ? `
             <button class="btn-upload-proof" style="flex:1;" onclick="document.getElementById('workerDetailOverlay').remove(); document.body.style.overflow=''; openWorkerResolveModal('${c._id}')">
               <i data-lucide="camera" style="width:16px;height:16px;"></i> Upload Proof
             </button>` : ''}

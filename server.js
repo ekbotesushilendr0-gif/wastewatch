@@ -13,6 +13,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const crypto = require("crypto");
 const https = require("https");
 const compression = require("compression");
+const { initializeDeadlineChecker, sendUserResolutionCompleteMail } = require("./services/deadlineChecker");
 require("dotenv").config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -93,6 +94,7 @@ mongoose
 
 // ─── MODELS ───────────────────────────────────────────────────────
 const userSchema = new mongoose.Schema({
+  name: { type: String, default: "" },
   email: { type: String, unique: true, lowercase: true, trim: true },
   password: String,
   role: { type: String, enum: ["user", "admin", "worker"], default: "user" },
@@ -129,7 +131,11 @@ const complaintSchema = new mongoose.Schema({
   category: String,
   description: String,
   urgency: String,
-  status: { type: String, default: "Pending" },
+  status: { 
+    type: String, 
+    enum: ["Pending", "In Progress", "Awaiting Approval", "Resolved", "Disputed"],
+    default: "Pending" 
+  },
   // Worker assignment fields
   workerEmail: String,
   workerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -137,11 +143,18 @@ const complaintSchema = new mongoose.Schema({
   // Verification flow fields
   proofImagePath: String,
   resolutionNote: String,
+  seenByAdmin: { type: Boolean, default: false },
   disputeReason: String,
   resolvedAt: Date,
   verifiedAt: Date,
   disputedAt: Date,
   createdAt: { type: Date, default: Date.now },
+  
+  // Deadline escalation system
+  deadlineAt: Date,
+  isEscalated: { type: Boolean, default: false },
+  escalationCount: { type: Number, default: 0 },
+  lastEscalatedAt: Date,
   
   // Duplicate tracking
   parentId: { type: mongoose.Schema.Types.ObjectId, ref: "Complaint", default: null },
@@ -170,6 +183,9 @@ complaintSchema.index({ createdAt: -1 });
 complaintSchema.index({ lat: 1, lng: 1 });
 
 const Complaint = mongoose.model("Complaint", complaintSchema);
+
+// Initialize deadline escalation checker
+initializeDeadlineChecker(Complaint);
 
 const draftComplaintSchema = new mongoose.Schema({
   sessionId: { type: String, required: true, unique: true },
@@ -304,7 +320,41 @@ function getWordOverlap(str1, str2) {
   return intersection / Math.max(words1.size, words2.size);
 }
 
+function getDeadlineMs(urgency) {
+  if (urgency === "High") return 6 * 60 * 60 * 1000;
+  if (urgency === "Medium") return 12 * 60 * 60 * 1000;
+  return 24 * 60 * 60 * 1000; 
+}
+
 // ─── AUTH ROUTES ──────────────────────────────────────────────────
+
+// GET User Profile
+app.get("/api/user/profile", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("name email role").lean();
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// UPDATE User Profile
+app.put("/api/user/profile", verifyToken, async (req, res) => {
+  try {
+    const { name } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    
+    if (name !== undefined) user.name = name;
+    await user.save();
+    
+    res.json({ message: "Profile updated successfully", user: { name: user.name, email: user.email } });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 
 // REGISTER — sends OTP
 app.post("/api/register", async (req, res) => {
@@ -476,6 +526,32 @@ app.post("/api/admin/make-worker", verifyToken, verifyAdmin, async (req, res) =>
   }
 });
 
+// Fetch all workers
+app.get("/api/admin/workers", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const workers = await User.find({ role: "worker" }, "name email");
+    res.json({ workers });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch workers" });
+  }
+});
+
+// Mark complaint as seen by admin
+app.post("/api/admin/complaints/:id/mark-seen", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ error: "Complaint not found" });
+    
+    if (!complaint.seenByAdmin) {
+      complaint.seenByAdmin = true;
+      await complaint.save();
+    }
+    res.json({ message: "Marked as seen", seenByAdmin: true });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ─── COMPLAINT ROUTES ─────────────────────────────────────────────
 
 app.post("/api/complaints/check", verifyToken, upload.single("image"), async (req, res) => {
@@ -508,7 +584,7 @@ app.post("/api/complaints/check", verifyToken, upload.single("image"), async (re
     const imagePath = req.file ? req.file.path : null;
 
     // 2. Candidate Selection (Max 3)
-    const activeStatuses = ["Pending", "In Progress", "Disputed", "Awaiting Verification"];
+    const activeStatuses = ["Pending", "In Progress", "Disputed", "Awaiting Approval"];
     const potentialCandidates = await Complaint.find({
       status: { $in: activeStatuses },
       category,
@@ -720,7 +796,8 @@ app.post("/api/complaints/check", verifyToken, upload.single("image"), async (re
         category,
         description,
         urgency,
-        parentId: null
+        parentId: null,
+      deadlineAt: new Date(Date.now() + getDeadlineMs(urgency))
       });
       await complaint.save();
       return res.status(201).json({
@@ -757,7 +834,8 @@ app.post("/api/complaints/confirm", verifyToken, async (req, res) => {
       category: draft.category,
       description: draft.description,
       urgency: draft.urgency,
-      parentId: null
+      parentId: null,
+      deadlineAt: new Date(Date.now() + getDeadlineMs(draft.urgency))
     });
     await complaint.save();
 
@@ -872,7 +950,8 @@ app.post("/api/complaints", verifyToken, upload.single("image"), async (req, res
       category,
       description,
       urgency,
-      parentId: null
+      parentId: null,
+      deadlineAt: new Date(Date.now() + getDeadlineMs(urgency))
     });
 
     await complaint.save();
@@ -1028,24 +1107,36 @@ app.patch("/api/complaints/:id/status", verifyToken, verifyAdmin, async (req, re
   }
 });
 
-// RESOLVE — worker uploads proof photo; sets status → Awaiting Verification
+// RESOLVE — worker uploads proof photo; sets status → Awaiting Approval
 app.post("/api/complaints/:id/resolve", verifyToken, upload.single("proof"), async (req, res) => {
   try {
+    console.log("Resolve endpoint called by:", req.user ? { id: req.user.id, role: req.user.role } : null);
+
     if (req.user.role !== "worker")
       return res.status(403).json({ error: "Access denied. Workers only." });
 
     const complaintToUpdate = await Complaint.findById(req.params.id);
     if (!complaintToUpdate) return res.status(404).json({ error: "Complaint not found." });
     
-    if (!complaintToUpdate.workerId || complaintToUpdate.workerId.toString() !== req.user.id)
+    const workerIdMatch = complaintToUpdate.workerId && complaintToUpdate.workerId.toString() === req.user.id;
+    const workerEmailMatch = complaintToUpdate.workerEmail && complaintToUpdate.workerEmail.toLowerCase() === req.user.email.toLowerCase();
+    if (!workerIdMatch && !workerEmailMatch)
       return res.status(403).json({ error: "Not authorized to resolve this complaint." });
 
-    const proofImagePath = req.file ? req.file.path : null;
+    // Multer storages can expose different fields depending on storage engine
+    // Accept common variants: path, secure_url, url, location, or a local filename
+    const file = req.file;
+    console.log("Received file metadata:", file ? Object.keys(file) : null);
+    let proofImagePath = null;
+    if (file) {
+      proofImagePath = file.path || file.secure_url || file.url || file.location || (file.filename ? `/uploads/${file.filename}` : null);
+    }
+
     if (!proofImagePath)
       return res.status(400).json({ error: "Proof image is required." });
 
     const { resolutionNote } = req.body;
-    complaintToUpdate.status = "Awaiting Verification";
+    complaintToUpdate.status = "Awaiting Approval";
     complaintToUpdate.proofImagePath = proofImagePath;
     complaintToUpdate.resolutionNote = resolutionNote || "";
     complaintToUpdate.resolvedAt = new Date();
@@ -1055,7 +1146,7 @@ app.post("/api/complaints/:id/resolve", verifyToken, upload.single("proof"), asy
     await Complaint.updateMany(
       { parentId: req.params.id },
       {
-        status: "Awaiting Verification",
+        status: "Awaiting Approval",
         proofImagePath,
         resolutionNote: resolutionNote || "",
         resolvedAt: new Date()
@@ -1076,8 +1167,8 @@ app.post("/api/complaints/:id/verify", verifyToken, async (req, res) => {
     if (!complaint) return res.status(404).json({ error: "Complaint not found." });
     if (complaint.userId.toString() !== req.user.id)
       return res.status(403).json({ error: "Not authorized." });
-    if (complaint.status !== "Awaiting Verification")
-      return res.status(400).json({ error: "Complaint is not awaiting verification." });
+    if (complaint.status !== "Awaiting Approval")
+      return res.status(400).json({ error: "Complaint is not awaiting approval." });
 
     complaint.status = "Verified";
     complaint.verifiedAt = new Date();
@@ -1103,8 +1194,8 @@ app.post("/api/complaints/:id/dispute", verifyToken, async (req, res) => {
     if (!complaint) return res.status(404).json({ error: "Complaint not found." });
     if (complaint.userId.toString() !== req.user.id)
       return res.status(403).json({ error: "Not authorized." });
-    if (complaint.status !== "Awaiting Verification")
-      return res.status(400).json({ error: "Complaint is not awaiting verification." });
+    if (complaint.status !== "Awaiting Approval")
+      return res.status(400).json({ error: "Complaint is not awaiting approval." });
 
     complaint.status = "Disputed";
     complaint.disputeReason = reason || "";
@@ -1120,6 +1211,47 @@ app.post("/api/complaints/:id/dispute", verifyToken, async (req, res) => {
     res.json(complaint);
   } catch (err) {
     res.status(500).json({ error: "Failed to dispute complaint." });
+  }
+});
+
+// ADMIN MARK AS RESOLVED — admin directly marks complaint as Resolved and sends completion email
+app.post("/api/admin/complaints/:id/mark-resolved", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { resolutionNote } = req.body;
+    
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ error: "Complaint not found." });
+    
+    // Update complaint status to Resolved and reset escalation flags
+    complaint.status = "Resolved";
+    complaint.resolvedAt = new Date();
+    complaint.resolutionNote = resolutionNote || "The issue has been successfully resolved by the municipal team.";
+    complaint.isEscalated = false;
+    complaint.escalationCount = 0;
+    complaint.lastEscalatedAt = null;
+    await complaint.save();
+
+    // Sync child complaints
+    await Complaint.updateMany(
+      { parentId: req.params.id },
+      {
+        status: "Resolved",
+        resolvedAt: new Date(),
+        resolutionNote: complaint.resolutionNote,
+        isEscalated: false,
+        escalationCount: 0
+      }
+    );
+
+    // Send completion email — non-blocking so email failure doesn't fail the approval
+    sendUserResolutionCompleteMail(complaint).catch(err =>
+      console.error("Resolution email failed (non-fatal):", err.message)
+    );
+
+    res.json({ message: "Complaint marked as resolved and email sent to user.", complaint });
+  } catch (err) {
+    console.error("Mark resolved error:", err.message, err.stack);
+    res.status(500).json({ error: "Failed to mark complaint as resolved.", detail: err.message });
   }
 });
 
